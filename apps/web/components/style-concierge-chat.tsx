@@ -13,6 +13,7 @@ import {
   RoomAudioRenderer,
   StartAudio,
   useRoomContext,
+  useTranscriptions,
   useVoiceAssistant,
 } from '@livekit/components-react';
 import {
@@ -43,6 +44,7 @@ import { requestLiveKitSession } from '@/lib/livekit-session';
 import {
   cameraAttributesFromQualities,
   createEmptyDeliveryDetails,
+  deliveryDetailsMatchSpeech,
   isDeliveryDetailsComplete,
   normalizeRpcCategory,
   normalizeDeliveryDetailsPayload,
@@ -50,6 +52,8 @@ import {
   profileChipsFromQualities,
   resolveLomaProductIdsFromPayload,
   resolveLiveDisplayProducts,
+  selectedProductsMatchSpeech,
+  speechLooksReady,
   type CheckoutDeliveryDetails,
   voiceStateFromAgentState,
   withTimeoutFallback,
@@ -166,6 +170,11 @@ type VoiceBridgeStatus = {
   };
 };
 
+type RecentSpeech = {
+  text: string;
+  receivedAt: number;
+};
+
 type PendingCapture = {
   category: 'hats' | 'tshirts';
   captureStarted: boolean;
@@ -198,6 +207,9 @@ const voiceColors: Record<VoiceState, string> = {
 };
 
 const CAMERA_PREVIEW_READY_TIMEOUT_MS = 1600;
+const READY_SPEECH_WINDOW_MS = 9_000;
+const SELECTION_SPEECH_WINDOW_MS = 30_000;
+const DELIVERY_SPEECH_WINDOW_MS = 45_000;
 
 export function StyleConciergeChat({
   cartCount,
@@ -227,6 +239,7 @@ export function StyleConciergeChat({
   const cameraControllersRef = useRef<Map<string, CameraController>>(new Map());
   const cameraReadyWaitersRef = useRef<Map<string, (status: string) => void>>(new Map());
   const captureGenerationRef = useRef(0);
+  const recentUserSpeechRef = useRef<RecentSpeech[]>([]);
   const liveRecommendationsIdRef = useRef<string | null>(null);
   const liveTryOnIdRef = useRef<string | null>(null);
   const liveCheckoutIdRef = useRef<string | null>(null);
@@ -235,6 +248,37 @@ export function StyleConciergeChat({
   useEffect(() => {
     voiceStateRef.current = voiceState;
   }, [voiceState]);
+
+  const noteUserSpeech = useCallback((text: string) => {
+    const trimmed = text.trim();
+
+    if (trimmed.length < 2) {
+      return;
+    }
+
+    const now = Date.now();
+    const previous = recentUserSpeechRef.current.at(-1);
+    if (previous?.text === trimmed) {
+      recentUserSpeechRef.current = [
+        ...recentUserSpeechRef.current.slice(0, -1),
+        { text: trimmed, receivedAt: now },
+      ];
+      return;
+    }
+
+    recentUserSpeechRef.current = [
+      ...recentUserSpeechRef.current.filter((entry) => now - entry.receivedAt < 60_000),
+      { text: trimmed, receivedAt: now },
+    ].slice(-24);
+  }, []);
+
+  const getRecentUserSpeech = useCallback((windowMs: number) => {
+    const now = Date.now();
+    return recentUserSpeechRef.current
+      .filter((entry) => now - entry.receivedAt <= windowMs)
+      .map((entry) => entry.text)
+      .join(' ');
+  }, []);
 
   const clearDemoTimers = useCallback(() => {
     timersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -251,6 +295,7 @@ export function StyleConciergeChat({
     cameraReadyWaitersRef.current.clear();
     liveCheckoutIdRef.current = null;
     lastCustomerImageRef.current = null;
+    recentUserSpeechRef.current = [];
     clearDemoTimers();
   }, [clearDemoTimers]);
 
@@ -798,6 +843,23 @@ export function StyleConciergeChat({
 
     const category = normalizeRpcCategory(payload);
     let messageId = activeCameraMessageIdRef.current;
+    const readySpeech = getRecentUserSpeech(READY_SPEECH_WINDOW_MS);
+
+    if (!speechLooksReady(readySpeech)) {
+      if (messageId) {
+        patchMsg(messageId, (message) =>
+          message.kind === 'camera'
+            ? {
+                ...message,
+                prompt: 'Camera is open. Tell Mira "I\'m ready" when you want the photo.',
+                actionBusy: false,
+              }
+            : message,
+        );
+      }
+
+      throw new Error('Mira is waiting for the shopper to say they are ready before taking the photo.');
+    }
 
     if (!messageId) {
       const prepared = parseRpcPayload(await prepareCustomerCameraRpc(payload));
@@ -896,8 +958,18 @@ export function StyleConciergeChat({
 
   async function generateTryOnsRpc(payload: unknown) {
     const selectedProductIds = readProductIds(payload);
+
+    if (selectedProductIds.length === 0) {
+      throw new Error('Ask the shopper to say the product names they want to preview.');
+    }
+
     const selectedProducts = resolveLiveDisplayProducts({ selectedProductIds });
+    const selectionSpeech = getRecentUserSpeech(SELECTION_SPEECH_WINDOW_MS);
     const recsId = liveRecommendationsIdRef.current;
+
+    if (!selectedProductsMatchSpeech(selectedProducts, selectionSpeech)) {
+      throw new Error('Ask the shopper to say the product names they want to preview.');
+    }
 
     if (recsId) {
       patchMsg(recsId, (message) => {
@@ -1026,7 +1098,17 @@ export function StyleConciergeChat({
 
   async function addToCartRpc(payload: unknown) {
     const productIds = readProductIds(payload);
+
+    if (productIds.length === 0) {
+      throw new Error('Ask the shopper to say the product names they want to add to cart.');
+    }
+
     const selectedProducts = resolveLiveDisplayProducts({ selectedProductIds: productIds });
+    const selectionSpeech = getRecentUserSpeech(SELECTION_SPEECH_WINDOW_MS);
+
+    if (!selectedProductsMatchSpeech(selectedProducts, selectionSpeech)) {
+      throw new Error('Ask the shopper to say the product names they want to add to cart.');
+    }
 
     onAddToCart(selectedProducts, true);
 
@@ -1064,10 +1146,24 @@ export function StyleConciergeChat({
   async function fillCheckoutDeliveryRpc(payload: unknown) {
     const delivery = normalizeDeliveryDetailsPayload(payload);
     const deliveryComplete = isDeliveryDetailsComplete(delivery);
+    const deliverySpeech = getRecentUserSpeech(DELIVERY_SPEECH_WINDOW_MS);
     let checkoutId = liveCheckoutIdRef.current;
 
     if (!checkoutId) {
       checkoutId = addCheckoutMessage(getSelectedDemoProducts());
+    }
+
+    if (!deliveryDetailsMatchSpeech(delivery, deliverySpeech)) {
+      patchMsg(checkoutId, (message) =>
+        message.kind === 'checkout'
+          ? {
+              ...message,
+              delivery: createEmptyDeliveryDetails(),
+              deliveryComplete: false,
+            }
+          : message,
+      );
+      throw new Error('Ask the shopper for their delivery details before filling the form.');
     }
 
     patchMsg(checkoutId, (message) =>
@@ -1510,7 +1606,7 @@ export function StyleConciergeChat({
               </div>
 
               <div className="mira-actions">
-                {demoStarted ? (
+                {demoStarted && !isLiveMode ? (
                   <button type="button" aria-label="Replay demo" onClick={replayDemo}>
                     <RefreshCw size={18} aria-hidden="true" />
                   </button>
@@ -1527,6 +1623,7 @@ export function StyleConciergeChat({
               <LiveKitVoiceRoom
                 rpcHandlers={rpcHandlers}
                 session={voiceBridge.session}
+                onUserSpeech={noteUserSpeech}
                 onConnected={() =>
                   {
                     setVoiceState('listening');
@@ -1655,6 +1752,7 @@ type LiveKitVoiceRoomProps = {
   onDisconnected: () => void;
   onError: (error: Error) => void;
   onAgentVoiceStateChange: (voiceState: VoiceState) => void;
+  onUserSpeech: (text: string) => void;
 };
 
 function LiveKitVoiceRoom({
@@ -1664,6 +1762,7 @@ function LiveKitVoiceRoom({
   onDisconnected,
   onError,
   onAgentVoiceStateChange,
+  onUserSpeech,
 }: LiveKitVoiceRoomProps) {
   return (
     <LiveKitRoom
@@ -1680,6 +1779,7 @@ function LiveKitVoiceRoom({
       <RoomAudioRenderer />
       <StartAudio className="livekit-start-audio" label="Enable voice" />
       <LiveKitBrowserRpcBridge handlers={rpcHandlers} />
+      <LiveKitUserSpeechBridge onUserSpeech={onUserSpeech} />
       <LiveKitAssistantStatus onVoiceStateChange={onAgentVoiceStateChange} />
     </LiveKitRoom>
   );
@@ -1717,6 +1817,34 @@ function LiveKitBrowserRpcBridge({ handlers }: LiveKitBrowserRpcBridgeProps) {
       methods.forEach((method) => room.unregisterRpcMethod(method));
     };
   }, [room]);
+
+  return null;
+}
+
+type LiveKitUserSpeechBridgeProps = {
+  onUserSpeech: (text: string) => void;
+};
+
+function LiveKitUserSpeechBridge({ onUserSpeech }: LiveKitUserSpeechBridgeProps) {
+  const room = useRoomContext();
+  const transcriptions = useTranscriptions({
+    room,
+    participantIdentities: [room.localParticipant.identity],
+  });
+  const seenTextByIdRef = useRef<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    for (const transcription of transcriptions) {
+      const previous = seenTextByIdRef.current.get(transcription.streamInfo.id);
+
+      if (previous === transcription.text) {
+        continue;
+      }
+
+      seenTextByIdRef.current.set(transcription.streamInfo.id, transcription.text);
+      onUserSpeech(transcription.text);
+    }
+  }, [onUserSpeech, transcriptions]);
 
   return null;
 }

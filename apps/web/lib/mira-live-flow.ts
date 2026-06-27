@@ -77,6 +77,62 @@ export function profileChipsFromQualities(qualities: CustomerQualities) {
   return [...new Set(chips)].slice(0, 5).map((value) => ({ label: '', value }));
 }
 
+export function speechLooksReady(value: string): boolean {
+  const normalized = normalizeSpeech(value);
+
+  return [
+    'ready',
+    'im ready',
+    'i am ready',
+    'take it',
+    'take the photo',
+    'take a photo',
+    'snap it',
+    'go ahead',
+  ].some((phrase) => normalized.includes(phrase));
+}
+
+export function selectedProductsMatchSpeech(products: LomaProduct[], speech: string): boolean {
+  const normalized = normalizeSpeech(speech);
+
+  if (products.length === 0 || normalized.length < 3) {
+    return false;
+  }
+
+  return products.every((product) => {
+    const fullName = normalizeSpeech(product.name);
+    if (fullName && normalized.includes(fullName)) {
+      return true;
+    }
+
+    return productSpeechTokens(product).some((token) => normalized.includes(token));
+  });
+}
+
+export function deliveryDetailsMatchSpeech(details: CheckoutDeliveryDetails, speech: string): boolean {
+  const normalized = normalizeSpeech(speech);
+  const digits = onlyDigits(speech);
+
+  if (normalized.split(' ').length < 5) {
+    return false;
+  }
+
+  const recipientToken = normalizeSpeech(details.recipient).split(' ').find((token) => token.length > 1);
+  const addressTokens = normalizeSpeech(details.address)
+    .split(' ')
+    .filter((token) => token.length > 2 && !['street', 'st', 'avenue', 'ave', 'road', 'rd'].includes(token));
+  const postalDigits = onlyDigits(details.postalCode);
+  const phoneDigits = onlyDigits(details.phone);
+
+  return Boolean(
+    recipientToken &&
+      normalized.includes(recipientToken) &&
+      addressTokens.some((token) => normalized.includes(token)) &&
+      (!postalDigits || digits.includes(postalDigits)) &&
+      (!phoneDigits || digits.includes(phoneDigits.slice(-4))),
+  );
+}
+
 export function createEmptyDeliveryDetails(): CheckoutDeliveryDetails {
   return {
     recipient: '',
@@ -198,6 +254,26 @@ function toTitleCase(value: string): string {
     .trim()
     .replace(/\s+/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function normalizeSpeech(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/['']/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function onlyDigits(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function productSpeechTokens(product: LomaProduct): string[] {
+  const stopWords = new Set(['tee', 'cap', 'hat', 'the', 'and', 'loma']);
+  return normalizeSpeech(`${product.name} ${product.kind} ${product.sub}`)
+    .split(' ')
+    .filter((token) => token.length > 2 && !stopWords.has(token));
 }
 
 function readDeliverySource(payload: unknown): Record<string, unknown> {

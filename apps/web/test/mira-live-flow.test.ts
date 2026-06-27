@@ -2,15 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   cameraAttributesFromQualities,
+  deliveryDetailsMatchSpeech,
   isDeliveryDetailsComplete,
   normalizeRpcCategory,
   normalizeDeliveryDetailsPayload,
   profileChipsFromQualities,
   resolveLomaProductIdsFromPayload,
   resolveLiveDisplayProducts,
+  selectedProductsMatchSpeech,
+  speechLooksReady,
   voiceStateFromAgentState,
   withTimeoutFallback,
 } from '../lib/mira-live-flow';
+import { lomaProducts } from '../lib/demo-script';
 
 describe('Mira live voice flow helpers', () => {
   afterEach(() => {
@@ -87,6 +91,18 @@ describe('Mira live voice flow helpers', () => {
     ).toEqual(['clay', 'camel']);
   });
 
+  it('recognizes recent speech that explicitly allows a camera capture', () => {
+    expect(speechLooksReady("Okay Mira, I'm ready.")).toBe(true);
+    expect(speechLooksReady('What are we buying today?')).toBe(false);
+  });
+
+  it('matches selected products only when the user says displayed product names', () => {
+    const selected = lomaProducts.filter((product) => ['clay', 'camel'].includes(product.id));
+
+    expect(selectedProductsMatchSpeech(selected, 'I like the Clay Pocket Tee and Camel Cord Cap.')).toBe(true);
+    expect(selectedProductsMatchSpeech(selected, 'I like two of them.')).toBe(false);
+  });
+
   it('normalizes spoken checkout delivery details from agent payloads', () => {
     const details = normalizeDeliveryDetailsPayload({
       deliveryDetails: {
@@ -108,6 +124,25 @@ describe('Mira live voice flow helpers', () => {
       phone: '212-555-0198',
     });
     expect(isDeliveryDetailsComplete(details)).toBe(true);
+  });
+
+  it('matches delivery details against actual spoken content instead of accepting guessed payloads', () => {
+    const details = normalizeDeliveryDetailsPayload({
+      recipient: 'Sagar',
+      address: '1 Main Street',
+      city: 'Boston',
+      state: 'MA',
+      postalCode: '02111',
+      phone: '123-456-7890',
+    });
+
+    expect(
+      deliveryDetailsMatchSpeech(
+        details,
+        'Sure, send it to Sagar at 1 Main Street, Boston MA 02111. My phone is 123-456-7890.',
+      ),
+    ).toBe(true);
+    expect(deliveryDetailsMatchSpeech(details, 'Yes, checkout sounds good.')).toBe(false);
   });
 
   it('maps LiveKit assistant states to the visible Mira voice state', () => {

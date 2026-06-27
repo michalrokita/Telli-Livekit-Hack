@@ -1,4 +1,5 @@
 from agent import (
+    _browser_qualities,
     _compact_cart_response,
     _compact_delivery_response,
     _compact_tryon_response,
@@ -6,6 +7,7 @@ from agent import (
     _delivery_source_matches_payload,
     _looks_like_ready_confirmation,
     _resolve_product_selectors,
+    _selection_source_matches_products,
     _turn_handling_options,
 )
 from style_concierge.mock_services import search_products
@@ -99,6 +101,51 @@ def test_delivery_payload_must_match_spoken_source():
     assert not _delivery_source_matches_payload("The family is fine, thanks.", payload)
 
 
+def test_agent_uses_browser_returned_qualities_instead_of_canned_analysis():
+    qualities = _browser_qualities(
+        {
+            "qualities": {
+                "hairColor": "light blond",
+                "skinTone": "fair cool",
+                "undertone": "cool",
+                "contrast": "low",
+                "palette": "summer",
+                "styleNotes": ["soft blues"],
+                "summary": "Cool summer palette.",
+            }
+        }
+    )
+
+    assert qualities == {
+        "hair_color": "light blond",
+        "skin_tone": "fair cool",
+        "undertone": "cool",
+        "contrast": "low",
+        "palette": "summer",
+        "style_notes": ["soft blues"],
+        "summary": "Cool summer palette.",
+    }
+
+
+def test_product_actions_require_source_speech_with_displayed_product_names():
+    products = search_products(
+        category="tshirts",
+        style_goal="easy premium basics",
+        qualities={"hair_color": "light blond", "skin_tone": "fair cool"},
+    )
+
+    assert _selection_source_matches_products(
+        "I like the Clay Pocket Tee and Camel Cord Cap.",
+        products,
+        ["Clay Pocket Tee", "Camel Cord Cap"],
+    )
+    assert not _selection_source_matches_products(
+        "I like two of them.",
+        products,
+        ["Clay Pocket Tee", "Camel Cord Cap"],
+    )
+
+
 def test_turn_handling_requires_clearer_interruption_signal():
     options = _turn_handling_options()
 
@@ -110,7 +157,7 @@ def test_turn_handling_requires_clearer_interruption_signal():
     assert options["interruption"] == {
         "enabled": True,
         "mode": "adaptive",
-        "min_duration": 0.9,
+        "min_duration": 1.1,
         "min_words": 2,
         "false_interruption_timeout": 1.8,
         "resume_false_interruption": True,

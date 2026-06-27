@@ -24,7 +24,6 @@ from livekit.agents import (
 from livekit.plugins import openai
 
 from style_concierge.mock_services import (
-    analyze_customer_image,
     search_products,
 )
 
@@ -39,7 +38,7 @@ load_dotenv(APP_DIR / ".env", override=False)
 AGENT_NAME = os.getenv("AGENT_NAME") or os.getenv("LIVEKIT_AGENT_NAME") or "style-concierge"
 REALTIME_MODEL = os.getenv("OPENAI_REALTIME_MODEL", "gpt-realtime-2")
 REALTIME_VOICE = os.getenv("OPENAI_REALTIME_VOICE", "marin")
-INTERRUPTION_MIN_DURATION = float(os.getenv("MIRA_INTERRUPTION_MIN_DURATION", "0.9"))
+INTERRUPTION_MIN_DURATION = float(os.getenv("MIRA_INTERRUPTION_MIN_DURATION", "1.1"))
 INTERRUPTION_MIN_WORDS = int(os.getenv("MIRA_INTERRUPTION_MIN_WORDS", "2"))
 FALSE_INTERRUPTION_TIMEOUT = float(os.getenv("MIRA_FALSE_INTERRUPTION_TIMEOUT", "1.8"))
 
@@ -52,12 +51,14 @@ call analyze_customer_image_tool with the exact ready phrase the user said. Expl
 the detected qualities briefly. If the photo is not satisfactory, retake before searching.
 
 Call search_matching_products, recommend exactly five products, and ask the user to
-select by exact product names. Call generate_customer_tryons for selected names,
-mention generation can take a moment, then ask which product names to add. Call
-add_items_to_cart, then immediately ask for recipient name, street address, city,
-state, postal code, and phone. Call fill_delivery_details only after the customer
-has actually spoken those fields. Ask for missing fields instead of guessing. Ask
-the customer to review the form, and point to mock Apple Pay.
+select by exact product names. Call generate_customer_tryons for selected names
+with the exact customer sentence that named them. Mention generation can take a
+moment, then ask which product names to add. Call add_items_to_cart only with the
+exact customer sentence that named items for the cart, then immediately ask for
+recipient name, street address, city, state, postal code, and phone. Call
+fill_delivery_details only after the customer has actually spoken those fields.
+Ask for missing fields instead of guessing. Ask the customer to review the form,
+and point to mock Apple Pay.
 
 Trust tools to update the website UI. Do not discuss internal API mode. Never claim
 a real purchase or payment was made; inventory, cart, checkout, and Apple Pay are
@@ -193,6 +194,35 @@ def _product_names(products: list[dict[str, Any]]) -> list[str]:
     return [str(product["name"]) for product in products if product.get("name")]
 
 
+def _string_value(source: dict[str, Any], *keys: str, fallback: str = "") -> str:
+    for key in keys:
+        value = source.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return fallback
+
+
+def _browser_qualities(capture: dict[str, Any]) -> dict[str, Any]:
+    raw = capture.get("qualities")
+    qualities = raw if isinstance(raw, dict) else {}
+    style_notes = qualities.get("styleNotes") or qualities.get("style_notes") or []
+
+    return {
+        "hair_color": _string_value(qualities, "hairColor", "hair_color", fallback="natural hair color"),
+        "skin_tone": _string_value(qualities, "skinTone", "skin_tone", fallback="balanced skin tone"),
+        "undertone": _string_value(qualities, "undertone", fallback="neutral"),
+        "contrast": _string_value(qualities, "contrast", fallback="medium"),
+        "palette": _string_value(qualities, "palette", fallback="balanced"),
+        "style_notes": style_notes if isinstance(style_notes, list) else [],
+        "summary": _string_value(
+            qualities,
+            "summary",
+            fallback="I have enough visual context to make a more personal edit.",
+        ),
+    }
+
+
 def _compact_tryon_response(product_names: list[str]) -> dict[str, Any]:
     return {
         "status": "tryons_ready",
@@ -248,6 +278,42 @@ def _delivery_source_matches_payload(source_transcript: str, payload: dict[str, 
     return recipient in normalized and (address_token in normalized or postal_code in normalized)
 
 
+def _selection_source_matches_products(source_transcript: str, products: list[dict[str, Any]], selectors: list[str]) -> bool:
+    if not selectors:
+        return False
+
+    normalized_source = _normalize_product_selector(source_transcript)
+    if len(normalized_source) < 3:
+        return False
+
+    resolved_ids = _resolve_product_selectors(products, selectors)
+    if not resolved_ids:
+        return False
+
+    product_by_id = {str(product.get("id")): product for product in products}
+    for product_id in resolved_ids:
+        product = product_by_id.get(product_id)
+        if not product:
+            return False
+
+        name = str(product.get("name", ""))
+        color = str(product.get("color", ""))
+        selector_tokens = [
+            token
+            for token in _product_selector_tokens(f"{name} {color}")
+            if len(token) > 2 and token not in {"tee", "cap", "hat", "the", "and"}
+        ]
+        if selector_tokens and any(token in normalized_source for token in selector_tokens):
+            continue
+
+        if _normalize_product_selector(name) in normalized_source:
+            continue
+
+        return False
+
+    return True
+
+
 def _turn_handling_options() -> TurnHandlingOptions:
     return TurnHandlingOptions(
         turn_detection=inference.TurnDetector(),
@@ -275,6 +341,8 @@ class StyleConciergeAgent(Agent):
         self._last_products: list[dict[str, Any]] = []
         self._cart_lines: list[dict[str, Any]] = []
         self._camera_session_id: str | None = None
+        self._last_image_ref: str | None = None
+        self._last_qualities: dict[str, Any] | None = None
 
     @function_tool(name="prepare_customer_camera")
     async def prepare_customer_camera(
@@ -324,11 +392,13 @@ class StyleConciergeAgent(Agent):
         image_ref = self._camera_session_id or image_ref
         browser_capture = await _browser_rpc(
             "captureCustomerImage",
-            {"imageRef": image_ref, "category": category},
+            {"imageRef": image_ref, "category": category, "readyConfirmation": ready_confirmation},
             timeout=45.0,
         )
         image_ref = str(browser_capture.get("imageRef") or image_ref)
-        result = analyze_customer_image(image_ref=image_ref, category=category)
+        result = _browser_qualities(browser_capture)
+        self._last_image_ref = image_ref
+        self._last_qualities = result
         return {
             "status": "analysis_complete",
             "image_ref": image_ref,
@@ -348,10 +418,10 @@ class StyleConciergeAgent(Agent):
         context: RunContext,
         category: str,
         style_goal: str,
-        hair_color: str = "dark brown",
-        skin_tone: str = "warm olive",
-        undertone: str = "golden",
-        contrast: str = "medium",
+        hair_color: str = "",
+        skin_tone: str = "",
+        undertone: str = "",
+        contrast: str = "",
     ) -> dict[str, Any]:
         """Find five matching demo products for the customer.
 
@@ -364,14 +434,17 @@ class StyleConciergeAgent(Agent):
             contrast: Overall visual contrast detected by image analysis.
         """
 
+        if not self._last_qualities:
+            raise ToolError("Analyze the customer image before searching for products.")
+
         self._last_products = search_products(
             category=category,
             style_goal=style_goal,
             qualities={
-                "hair_color": hair_color,
-                "skin_tone": skin_tone,
-                "undertone": undertone,
-                "contrast": contrast,
+                "hair_color": hair_color or self._last_qualities.get("hair_color"),
+                "skin_tone": skin_tone or self._last_qualities.get("skin_tone"),
+                "undertone": undertone or self._last_qualities.get("undertone"),
+                "contrast": contrast or self._last_qualities.get("contrast"),
             },
         )
         await _browser_rpc(
@@ -396,6 +469,7 @@ class StyleConciergeAgent(Agent):
         context: RunContext,
         image_ref: str,
         selected_products: list[str],
+        source_transcript: str,
     ) -> dict[str, Any]:
         """Generate try-on previews for selected products.
 
@@ -403,7 +477,11 @@ class StyleConciergeAgent(Agent):
             image_ref: A reference to the customer image or current camera frame.
             selected_products: Exact product names the customer wants to preview.
                 Product IDs are accepted internally, but speak and ask for names.
+            source_transcript: The exact customer sentence naming the products to preview.
         """
+
+        if not _selection_source_matches_products(source_transcript, self._last_products, selected_products):
+            raise ToolError("Ask the customer to name the displayed products before generating try-ons.")
 
         selected_product_ids = _resolve_product_selectors(self._last_products, selected_products)
         if not selected_product_ids:
@@ -419,9 +497,10 @@ class StyleConciergeAgent(Agent):
         await _browser_rpc(
             "generateTryOns",
             {
-                "imageRef": image_ref,
+                "imageRef": self._last_image_ref or image_ref,
                 "selectedProductIds": selected_product_ids,
                 "selectedProductNames": selected_product_names,
+                "sourceTranscript": source_transcript,
             },
             timeout=75.0,
         )
@@ -432,16 +511,21 @@ class StyleConciergeAgent(Agent):
         self,
         context: RunContext,
         products: list[str],
+        source_transcript: str,
     ) -> dict[str, Any]:
         """Add selected products to the demo cart and return mock checkout details.
 
         Args:
             products: Exact product names the customer confirmed they want to buy.
                 Product IDs are accepted internally, but speak and ask for names.
+            source_transcript: The exact customer sentence naming the products to add to cart.
         """
 
         if hasattr(context, "disallow_interruptions"):
             context.disallow_interruptions()
+
+        if not _selection_source_matches_products(source_transcript, self._last_products, products):
+            raise ToolError("Ask the customer to name the displayed products before adding them to cart.")
 
         product_ids = _resolve_product_selectors(self._last_products, products)
         if not product_ids:
