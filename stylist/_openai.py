@@ -233,8 +233,8 @@ def edit_image(
     mask=None,
     reference_images=None,
     model: str = "gpt-image-2",
-    size: str = "1024x1024",
-    quality: str | None = None,
+    size: str = "256x256",
+    quality: str | None = 'low',
     cassette: str | None = None,
 ) -> bytes:
     """Identity-preserving image edit -> PNG bytes.
