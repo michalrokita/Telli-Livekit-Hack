@@ -16,6 +16,7 @@ Source of truth: ``stylist-engine-algorithm.md`` §3.1 (schema), §3.2 (robustne
 from __future__ import annotations
 
 import json
+import os
 
 from ._openai import OpenAIError, vision_json
 from .schemas import StyleProfile
@@ -110,7 +111,7 @@ _DEFAULT_MODEL = "gpt-5.5"
 _MAX_ATTEMPTS = 2  # anti-loop: one read + one retry, never a 3rd.
 
 
-def analyze(image, *, model: str = _DEFAULT_MODEL, cassette: str | None = None) -> StyleProfile:
+def analyze(image, *, model: str | None = None, cassette: str | None = None) -> StyleProfile:
     """Analyze one photo of a person → a validated :class:`StyleProfile`.
 
     Parameters
@@ -119,7 +120,9 @@ def analyze(image, *, model: str = _DEFAULT_MODEL, cassette: str | None = None) 
         Filesystem path (str / PathLike) or raw image bytes. Passed straight to the
         transport; never stored here.
     model:
-        Vision model id. Defaults to ``"gpt-5.5"`` (the capability-critical tier).
+        Vision model id. Precedence: explicit arg > ``STYLIST_ANALYZE_MODEL`` env >
+        ``"gpt-5.5"`` (the capability-critical default). Set the env to ``gpt-5.4-mini``
+        to roughly halve latency/cost — test the read quality first.
     cassette:
         Record/replay cassette name. Default (and with ``STYLIST_LIVE`` unset) the call is
         replayed from ``stylist/tests/fixtures/cassettes/<cassette>.json``.
@@ -138,6 +141,7 @@ def analyze(image, *, model: str = _DEFAULT_MODEL, cassette: str | None = None) 
         If the model fails to return a schema-valid StyleProfile after the retry
         (anti-loop: 2 attempts max), or on a transport failure.
     """
+    model = model or os.environ.get("STYLIST_ANALYZE_MODEL", _DEFAULT_MODEL)
     last_err: Exception | None = None
     for _attempt in range(_MAX_ATTEMPTS):
         result = vision_json(
