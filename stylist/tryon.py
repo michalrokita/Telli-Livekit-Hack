@@ -287,17 +287,54 @@ def _regions_for(categories) -> list:
     return list(categories)  # names already alias onto torso / head_top in build_mask
 
 
+def _restore_outside(base_bytes, edited_bytes, regions) -> bytes:
+    """Keep ONLY the garment region(s) from the model output; restore everything else
+    (face, hair, background) from ``base`` — pixel-level masking we control.
+
+    gpt-image's API mask is an unreliable *hint*: the model often blackens or garbles the
+    "locked" area (the big black square over the face). So instead of trusting it, we paste
+    the model's render back ONLY inside the (feathered) garment boxes and keep the original
+    pixels everywhere else. This makes the black-square / face-drift failure mode impossible:
+    the face is always the real face, whatever the model did outside the box.
+    """
+    from PIL import Image, ImageDraw, ImageFilter
+
+    base = Image.open(BytesIO(load_image_bytes(base_bytes))).convert("RGB")
+    edit = Image.open(BytesIO(load_image_bytes(edited_bytes))).convert("RGB")
+    if edit.size != base.size:
+        edit = edit.resize(base.size)
+    w, h = base.size
+    alpha = Image.new("L", (w, h), 0)  # 0 = keep base everywhere
+    draw = ImageDraw.Draw(alpha)
+    for region in regions:
+        key = _REGION_ALIASES.get(str(region).lower())
+        if key is None:
+            continue
+        left, top, right, bottom = _REGION_BOXES[key]
+        draw.rectangle((int(left * w), int(top * h), int(right * w), int(bottom * h)), fill=255)
+    alpha = alpha.filter(ImageFilter.GaussianBlur(max(2, int(min(w, h) * 0.015))))  # soft seam
+    out = Image.composite(edit, base, alpha)  # edit inside the boxes, base outside
+    buf = BytesIO()
+    out.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def _execute(base_photo, passes, *, fix_instruction=None) -> bytes:
     """Run the masked-edit passes in order (chaining each output into the next).
 
     Synchronous and render-only. Returns the final PNG bytes. The critic is NOT involved
     here — keeping this off the critic's path is the whole point.
+
+    After each model edit we composite the result back onto the pass input
+    (:func:`_restore_outside`) so only the garment region changes and the face/background
+    stay exactly original — this removes the gpt-image "black square over the face" failure.
     """
     current = load_image_bytes(base_photo)
     for p in passes:
-        mask = build_mask(current, _regions_for(p.categories))
+        regions = _regions_for(p.categories)
+        mask = build_mask(current, regions)
         prompt = build_p3_prompt(p.tee_desc, p.hat_desc, fix_instruction=fix_instruction)
-        current = edit_image(
+        edited = edit_image(
             base_image=current,
             prompt=prompt,
             mask=mask,
@@ -305,6 +342,7 @@ def _execute(base_photo, passes, *, fix_instruction=None) -> bytes:
             model=RENDER_MODEL,
             cassette=p.cassette,
         )
+        current = _restore_outside(current, edited, regions)
     return current
 
 
