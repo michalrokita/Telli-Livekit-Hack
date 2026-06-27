@@ -28,9 +28,19 @@ def test_product_search_returns_five_matching_items():
     )
 
     assert len(products) == 5
-    assert [product["id"] for product in products] == ["clay", "bone", "olive", "camel", "char"]
-    assert [product["name"] for product in products[:2]] == ["Clay Pocket Tee", "Bone Boxy Tee"]
+    assert [product["id"] for product in products] == [
+        "TEE-OLIVE-001",
+        "TEE-RUST-002",
+        "TEE-NAVY-003",
+        "TEE-CHARCOAL-004",
+        "TEE-CREAM-005",
+    ]
+    assert [product["name"] for product in products[:2]] == [
+        "Heavyweight Olive Crew Tee",
+        "Garment-Dyed Rust Pocket Tee",
+    ]
     assert all(product["price"] > 0 for product in products)
+    assert all(product["category"] == "tshirts" for product in products)
 
 
 def test_try_on_generation_uses_selected_product_ids():

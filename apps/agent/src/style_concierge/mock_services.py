@@ -31,12 +31,25 @@ _CATEGORY_COPY = {
     },
 }
 
-_LOMA_PRODUCTS = [
-    ("clay", "Clay Pocket Tee", "Clay", 48, "tshirts"),
-    ("bone", "Bone Boxy Tee", "Bone", 52, "tshirts"),
-    ("olive", "Olive Heavyweight", "Muted olive", 54, "tshirts"),
-    ("camel", "Camel Cord Cap", "Camel", 42, "hats"),
-    ("char", "Charcoal 5-Panel", "Charcoal", 44, "hats"),
+# Mirrors the `stylist` brain catalog (stylist/catalog/sample_catalog.json): same product
+# IDs + flat-garment images (served by the web app from /catalog) so the agent's fallback
+# product list shares one identity with what the UI shows and what try-on renders.
+# (id, name, color, price, category, image_path)
+_CATALOG = [
+    ("TEE-OLIVE-001", "Heavyweight Olive Crew Tee", "olive", 29.9, "tshirts", "/catalog/tee-olive-001.png"),
+    ("TEE-RUST-002", "Garment-Dyed Rust Pocket Tee", "rust", 32.0, "tshirts", "/catalog/tee-rust-002.png"),
+    ("TEE-NAVY-003", "Classic Navy Crew Tee", "navy", 24.9, "tshirts", "/catalog/tee-navy-003.png"),
+    ("TEE-CHARCOAL-004", "Charcoal Slub V-Neck Tee", "charcoal", 27.5, "tshirts", "/catalog/tee-charcoal-004.png"),
+    ("TEE-CREAM-005", "Vintage Cream Boxy Tee", "cream", 34.9, "tshirts", "/catalog/tee-cream-005.png"),
+    ("TEE-TEAL-006", "Teal Ringer Tee", "teal", 26.0, "tshirts", "/catalog/tee-teal-006.png"),
+    ("TEE-BLACK-007", "Midnight Black Crew Tee", "black", 25.0, "tshirts", "/catalog/tee-black-007.png"),
+    ("TEE-WHITE-008", "Essential White Crew Tee", "white", 22.9, "tshirts", "/catalog/tee-white-008.png"),
+    ("HAT-CAP-009", "Olive 6-Panel Cap", "olive", 28.0, "hats", "/catalog/hat-cap-009.png"),
+    ("HAT-FEDORA-010", "Charcoal Short-Brim Fedora", "charcoal", 59.9, "hats", "/catalog/hat-fedora-010.png"),
+    ("HAT-BEANIE-011", "Navy Ribbed Beanie", "navy", 21.0, "hats", "/catalog/hat-beanie-011.png"),
+    ("HAT-BUCKET-012", "Rust Cotton Bucket Hat", "rust", 33.0, "hats", "/catalog/hat-bucket-012.png"),
+    ("HAT-CAP-013", "Black 5-Panel Cap", "black", 26.5, "hats", "/catalog/hat-cap-013.png"),
+    ("HAT-BEANIE-014", "Cream Cuffed Beanie", "cream", 23.5, "hats", "/catalog/hat-beanie-014.png"),
 ]
 
 
@@ -116,6 +129,8 @@ def search_products(
     skin_tone = qualities.get("skin_tone", "warm olive")
     contrast = qualities.get("contrast", "medium")
 
+    catalog = [item for item in _CATALOG if item[4] == category_key][:5]
+
     return [
         {
             "id": product_id,
@@ -124,7 +139,7 @@ def search_products(
             "color": color,
             "price": price,
             "currency": "USD",
-            "image_url": f"https://demo.style-concierge.local/products/{product_id}.jpg",
+            "image_url": image_path,
             "match_score": round(0.96 - (index * 0.035), 3),
             "why_it_matches": [
                 f"Fits the requested style goal: {style_goal_text}.",
@@ -141,7 +156,7 @@ def search_products(
                 "ships_in_days": 2 + (index % 2),
             },
         }
-        for index, (product_id, name, color, price, product_category) in enumerate(_LOMA_PRODUCTS)
+        for index, (product_id, name, color, price, product_category, image_path) in enumerate(catalog)
     ]
 
 

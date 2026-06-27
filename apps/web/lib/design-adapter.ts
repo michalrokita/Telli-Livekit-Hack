@@ -54,6 +54,8 @@ export type ShopperFlowClientOptions = {
 
 type AnalyzeImageResponse = {
   analysis: CustomerQualities;
+  // Raw StyleProfile dict from the brain (null on the offline shopper-flow fallback).
+  profile?: unknown;
 };
 
 type SearchProductsResponse = {
@@ -135,9 +137,9 @@ export function getDesignCategoryChoice(value: unknown): DesignCategoryChoice {
 export async function analyzeShopperImage(
   input: { imageDataUrl: string; category: ShopperCategory },
   options: ShopperFlowClientOptions = {},
-): Promise<CustomerQualities> {
+): Promise<{ analysis: CustomerQualities; profile: unknown }> {
   const response = await postJson<AnalyzeImageResponse>('/api/mock/analyze-image', input, options);
-  return response.analysis;
+  return { analysis: response.analysis, profile: response.profile ?? null };
 }
 
 export async function searchShopperProducts(
@@ -172,7 +174,7 @@ export async function runShopperDemoFlow(
   }
 
   const customerImageId = input.customerImageId ?? DEFAULT_CUSTOMER_IMAGE_ID;
-  const analysis = await analyzeShopperImage(
+  const { analysis } = await analyzeShopperImage(
     {
       imageDataUrl: input.imageDataUrl,
       category: choice.category,

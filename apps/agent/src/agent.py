@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +37,47 @@ load_dotenv(REPO_DIR / ".env", override=False)
 load_dotenv(APP_DIR / ".env.local")
 load_dotenv(APP_DIR / ".env", override=False)
 
+# Make the repo-root `stylist` brain importable from the agent process. We APPEND (not
+# prepend) so a plain `import platform` still resolves to the stdlib, not the repo's
+# `platform/` package — the brain itself never needs the platform layer.
+if str(REPO_DIR) not in sys.path:
+    sys.path.append(str(REPO_DIR))
+
+
+def _recommend_products(profile_dict: dict[str, Any], category_key: str, n: int = 5) -> list[dict[str, Any]]:
+    """Run the brain's deterministic `recommend` over the unified catalog → product dicts.
+
+    Synchronous (call via ``asyncio.to_thread``). Scoring is deterministic; the per-item
+    rationale is a live LLM call when ``STYLIST_LIVE=1`` and falls back to templates offline.
+    Product ids/images match the web catalog so the UI, recommend, and try-on share identity.
+    """
+    from stylist.recommend import recommend as stylist_recommend
+    from stylist.schemas import StyleProfile
+
+    profile = StyleProfile.from_dict(profile_dict)
+    options = stylist_recommend(profile, n=max(n, 2)).to_dict()
+    bucket = "hats" if category_key == "hats" else "tshirts"
+
+    products: list[dict[str, Any]] = []
+    for item in options.get(bucket, [])[:n]:
+        product_id = str(item["product_id"])
+        products.append(
+            {
+                "id": product_id,
+                "category": category_key,
+                "name": item.get("title", product_id),
+                "color": item.get("color_hex", ""),
+                "price": item.get("price", 0),
+                "currency": "USD",
+                "image_url": f"/catalog/{product_id.lower()}.png",
+                "sizes": item.get("sizes", []),
+                "match_score": item.get("score"),
+                "recommendation_reason": item.get("rationale", ""),
+            }
+        )
+    return products
+
+
 AGENT_NAME = os.getenv("AGENT_NAME") or os.getenv("LIVEKIT_AGENT_NAME") or "style-concierge"
 REALTIME_MODEL = os.getenv("OPENAI_REALTIME_MODEL", "gpt-realtime-2")
 REALTIME_VOICE = os.getenv("OPENAI_REALTIME_VOICE", "marin")
@@ -50,8 +93,9 @@ camera; call prepare_customer_camera; wait for the user to say they are ready; t
 call analyze_customer_image_tool with the exact ready phrase the user said. Explain
 the detected qualities briefly. If the photo is not satisfactory, retake before searching.
 
-Call search_matching_products, recommend exactly five products, and ask the user to
-select by exact product names. Call generate_customer_tryons for selected names
+Call search_matching_products, then recommend the products it returns using each
+product's name and its short reason (do not invent items, prices, or extra picks).
+Ask the user to select by exact product names. Call generate_customer_tryons for selected names
 with the exact customer sentence that named them. Mention generation can take a
 moment, then ask which product names to add. Call add_items_to_cart only with the
 exact customer sentence that named items for the cart, then immediately ask for
@@ -343,6 +387,7 @@ class StyleConciergeAgent(Agent):
         self._camera_session_id: str | None = None
         self._last_image_ref: str | None = None
         self._last_qualities: dict[str, Any] | None = None
+        self._last_profile: dict[str, Any] | None = None
 
     @function_tool(name="prepare_customer_camera")
     async def prepare_customer_camera(
@@ -399,6 +444,9 @@ class StyleConciergeAgent(Agent):
         result = _browser_qualities(browser_capture)
         self._last_image_ref = image_ref
         self._last_qualities = result
+        # Raw StyleProfile dict from the brain's analyze — feeds the real `recommend`.
+        style_profile = browser_capture.get("styleProfile")
+        self._last_profile = style_profile if isinstance(style_profile, dict) else None
         return {
             "status": "analysis_complete",
             "image_ref": image_ref,
@@ -437,30 +485,56 @@ class StyleConciergeAgent(Agent):
         if not self._last_qualities:
             raise ToolError("Analyze the customer image before searching for products.")
 
-        self._last_products = search_products(
-            category=category,
-            style_goal=style_goal,
-            qualities={
-                "hair_color": hair_color or self._last_qualities.get("hair_color"),
-                "skin_tone": skin_tone or self._last_qualities.get("skin_tone"),
-                "undertone": undertone or self._last_qualities.get("undertone"),
-                "contrast": contrast or self._last_qualities.get("contrast"),
-            },
-        )
+        category_key = "hats" if re.search(r"hat|cap", category, re.IGNORECASE) else "tshirts"
+
+        # Primary path: the brain's deterministic `recommend` over the real catalog, scored
+        # against the customer's actual StyleProfile. Falls back to the mock only if the
+        # profile is missing or the brain call fails (never a hard error on the live demo).
+        products: list[dict[str, Any]] = []
+        if self._last_profile:
+            try:
+                products = await asyncio.to_thread(
+                    _recommend_products, self._last_profile, category_key, 5
+                )
+            except Exception:
+                products = []
+
+        used_recommend = bool(products)
+        if not products:
+            products = search_products(
+                category=category,
+                style_goal=style_goal,
+                qualities={
+                    "hair_color": hair_color or self._last_qualities.get("hair_color"),
+                    "skin_tone": skin_tone or self._last_qualities.get("skin_tone"),
+                    "undertone": undertone or self._last_qualities.get("undertone"),
+                    "contrast": contrast or self._last_qualities.get("contrast"),
+                },
+            )
+
+        self._last_products = products
         await _browser_rpc(
             "showProductRecommendations",
             {
-                "category": category,
+                "category": category_key,
                 "styleGoal": style_goal,
-                "products": self._last_products,
+                "products": products,
             },
             timeout=8.0,
         )
         return {
             "status": "complete",
-            "count": len(self._last_products),
-            "product_names": _product_names(self._last_products),
-            "next_step": "Recommend the five product names with short reasons, then ask which names they like.",
+            "source": "stylist_recommend" if used_recommend else "fallback",
+            "count": len(products),
+            "product_names": _product_names(products),
+            "recommendations": [
+                {
+                    "name": product["name"],
+                    "reason": product.get("recommendation_reason") or product.get("styling_tip", ""),
+                }
+                for product in products
+            ],
+            "next_step": "Recommend each product name with its short reason, then ask which names they like.",
         }
 
     @function_tool(name="generate_customer_tryons")

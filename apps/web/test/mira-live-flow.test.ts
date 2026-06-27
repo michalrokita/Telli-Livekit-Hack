@@ -65,30 +65,31 @@ describe('Mira live voice flow helpers', () => {
     ]);
   });
 
-  it('uses the five-piece LOMA edit when the live agent asks to show recommendations', () => {
+  it('shows exactly the catalog products the live agent recommends', () => {
+    const recommended = ['TEE-OLIVE-001', 'TEE-RUST-002', 'TEE-CREAM-005', 'HAT-CAP-009', 'HAT-FEDORA-010'];
     const products = resolveLiveDisplayProducts({
       category: 'tshirts',
-      products: [{ id: 'unknown-agent-product' }],
+      products: recommended.map((id) => ({ id })),
     });
 
     expect(products).toHaveLength(5);
-    expect(products.map((product) => product.id)).toEqual(['clay', 'bone', 'olive', 'camel', 'char']);
+    expect(products.map((product) => product.id)).toEqual(recommended);
   });
 
-  it('resolves selected try-on ids while falling back to the demo picks', () => {
+  it('resolves selected try-on ids while dropping unknown ids', () => {
     const products = resolveLiveDisplayProducts({
-      selectedProductIds: ['camel', 'missing'],
+      selectedProductIds: ['HAT-CAP-009', 'missing'],
     });
 
-    expect(products.map((product) => product.id)).toEqual(['camel']);
+    expect(products.map((product) => product.id)).toEqual(['HAT-CAP-009']);
   });
 
   it('resolves selected product names from voice tool payloads', () => {
     expect(
       resolveLomaProductIdsFromPayload({
-        selectedProducts: ['Clay Pocket Tee', 'camel cap'],
+        selectedProducts: ['Heavyweight Olive Crew Tee', 'olive cap'],
       }),
-    ).toEqual(['clay', 'camel']);
+    ).toEqual(['TEE-OLIVE-001', 'HAT-CAP-009']);
   });
 
   it('recognizes recent speech that explicitly allows a camera capture', () => {
@@ -97,9 +98,9 @@ describe('Mira live voice flow helpers', () => {
   });
 
   it('matches selected products only when the user says displayed product names', () => {
-    const selected = lomaProducts.filter((product) => ['clay', 'camel'].includes(product.id));
+    const selected = lomaProducts.filter((product) => ['TEE-OLIVE-001', 'HAT-CAP-009'].includes(product.id));
 
-    expect(selectedProductsMatchSpeech(selected, 'I like the Clay Pocket Tee and Camel Cord Cap.')).toBe(true);
+    expect(selectedProductsMatchSpeech(selected, 'I like the Heavyweight Olive Crew Tee and Olive 6-Panel Cap.')).toBe(true);
     expect(selectedProductsMatchSpeech(selected, 'I like two of them.')).toBe(false);
   });
 

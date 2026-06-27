@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -41,6 +41,7 @@ export type StylistPythonRunner = (request: StylistPythonRequest) => StylistPyth
 
 type TryOnResult = {
   image_url?: unknown;
+  image_data_url?: unknown;
   status?: unknown;
   rendered_option_ids?: unknown;
   retry_count?: unknown;
@@ -56,6 +57,7 @@ type TryOnInput = {
 };
 
 const REPO_ROOT = process.env.STYLIST_REPO_ROOT ?? resolve(process.cwd(), '..', '..');
+const REPO_VENV_PYTHON = resolve(REPO_ROOT, 'apps', 'agent', '.venv', 'bin', 'python');
 
 export function resolveStylistRuntimeEnv(
   source: Record<string, string | undefined>,
@@ -248,8 +250,8 @@ export function mapStyleProfileToCustomerQualities(profile: unknown, category: S
 }
 
 function defaultPythonRunner(request: StylistPythonRequest): StylistPythonResult {
-  const python = process.env.STYLIST_PYTHON ?? 'python3';
   const env = resolveStylistRuntimeEnv(process.env);
+  const python = env.STYLIST_PYTHON ?? (existsSync(REPO_VENV_PYTHON) ? REPO_VENV_PYTHON : 'python3');
 
   if (request.kind === 'analyze') {
     const cassette = env.STYLIST_ANALYZE_CASSETTE ?? (env.STYLIST_LIVE === '1' ? '' : 'analyze_good');
@@ -280,14 +282,21 @@ function defaultPythonRunner(request: StylistPythonRequest): StylistPythonResult
   }
 
   const cassette = env.STYLIST_TRYON_CASSETTE ?? (env.STYLIST_LIVE === '1' ? '' : 'tryon_hat');
+  // The brain writes the rendered PNG to a local path the browser can't read, so we
+  // inline it as a base64 data URL the UI can show directly.
   const script = [
-    'import json, os, sys',
+    'import json, os, sys, base64',
     'from stylist.tryon import tryon',
     'cassette = os.environ.get("STYLIST_TRYON_CASSETTE") or None',
     'catalog = json.loads(os.environ.get("STYLIST_TRYON_CATALOG") or "{}") or None',
     'result = tryon(sys.argv[1], sys.argv[2:], catalog=catalog, cassette=cassette)',
-    'print(json.dumps(result.to_dict()))',
-  ].join('; ');
+    'data = result.to_dict()',
+    'path = data.get("image_url")',
+    'if isinstance(path, str) and os.path.exists(path):',
+    '    with open(path, "rb") as handle:',
+    '        data["image_data_url"] = "data:image/png;base64," + base64.b64encode(handle.read()).decode("ascii")',
+    'print(json.dumps(data))',
+  ].join('\n');
 
   if (cassette) {
     env.STYLIST_TRYON_CASSETTE = cassette;
@@ -301,6 +310,7 @@ function defaultPythonRunner(request: StylistPythonRequest): StylistPythonResult
     env,
     encoding: 'utf8',
     timeout: 180_000,
+    maxBuffer: 64 * 1024 * 1024,
   });
 
   return {
@@ -310,11 +320,13 @@ function defaultPythonRunner(request: StylistPythonRequest): StylistPythonResult
   };
 }
 
+export type StylistAnalysis = { qualities: CustomerQualities; profile: unknown };
+
 export async function tryAnalyzeWithStylist({
   imageDataUrl,
   category,
   runner = defaultPythonRunner,
-}: AnalyzeCustomerImageInput & { runner?: StylistPythonRunner }): Promise<CustomerQualities | null> {
+}: AnalyzeCustomerImageInput & { runner?: StylistPythonRunner }): Promise<StylistAnalysis | null> {
   try {
     return withTempImage(imageDataUrl, (imagePath) => {
       const result = runner({ kind: 'analyze', imagePath });
@@ -323,7 +335,13 @@ export async function tryAnalyzeWithStylist({
       }
 
       const profile = parseJsonObject(result.stdout);
-      return mapStyleProfileToCustomerQualities(profile, category);
+      if (!profile || typeof profile !== 'object') {
+        return null;
+      }
+
+      // The raw StyleProfile dict is threaded to the voice agent so it can run the
+      // brain's `recommend` over the same profile (not a lossy re-derivation).
+      return { qualities: mapStyleProfileToCustomerQualities(profile, category), profile };
     });
   } catch {
     return null;
@@ -344,7 +362,12 @@ function mapTryOnResultToJobs(input: TryOnInput, result: TryOnResult): TryOnJob[
   const productsById = new Map(input.products.map((product) => [product.id, product]));
   const renderedIds = stringList(result.rendered_option_ids);
   const renderedSet = new Set(renderedIds);
-  const imageUrl = isBrowserReadableUrl(result.image_url) ? result.image_url : null;
+  // Prefer the inlined render (data URL); fall back to a browser-readable image_url.
+  const imageUrl = isBrowserReadableUrl(result.image_data_url)
+    ? (result.image_data_url as string)
+    : isBrowserReadableUrl(result.image_url)
+      ? (result.image_url as string)
+      : null;
 
   return input.selectedProductIds.flatMap((productId, index) => {
     const product = productsById.get(productId);
@@ -402,18 +425,20 @@ export async function tryCreateTryOnJobsWithStylist(input: TryOnInput): Promise<
 }
 
 export const createTryOnJobsWithStylistFallback = {
-  async analyze(input: AnalyzeCustomerImageInput & { runner?: StylistPythonRunner }): Promise<CustomerQualities> {
+  async analyze(
+    input: AnalyzeCustomerImageInput & { runner?: StylistPythonRunner },
+  ): Promise<{ analysis: CustomerQualities; profile: unknown | null }> {
     const analysis = await tryAnalyzeWithStylist(input);
 
     if (analysis) {
-      return analysis;
+      return { analysis: analysis.qualities, profile: analysis.profile };
     }
 
     if (isLiveStylistMode()) {
       throw new Error('Live stylist image analysis failed.');
     }
 
-    return analyzeCustomerImage(input);
+    return { analysis: await analyzeCustomerImage(input), profile: null };
   },
 
   async tryOns(input: TryOnInput): Promise<TryOnJob[]> {

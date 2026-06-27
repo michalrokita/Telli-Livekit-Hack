@@ -676,11 +676,14 @@ export function StyleConciergeChat({
     }
 
     let qualities: CustomerQualities;
+    let styleProfile: unknown = null;
     try {
-      qualities = await analyzeShopperImage({
+      const analyzed = await analyzeShopperImage({
         imageDataUrl: capture.imageDataUrl,
         category: pending.category,
       });
+      qualities = analyzed.analysis;
+      styleProfile = analyzed.profile;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Image analysis failed.';
       patchMsg(messageId, (currentMessage) =>
@@ -724,6 +727,7 @@ export function StyleConciergeChat({
         captureSource: capture.source,
         category: pending.category,
         qualities,
+        styleProfile,
       }),
     );
     pendingCaptureRef.current = null;

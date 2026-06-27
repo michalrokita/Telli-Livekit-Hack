@@ -31,10 +31,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'category must be hats or tshirts.' }, { status: 400 });
   }
 
-  const analysis = await createTryOnJobsWithStylistFallback.analyze({
+  const { analysis, profile } = await createTryOnJobsWithStylistFallback.analyze({
     imageDataUrl: body.imageDataUrl,
     category: body.category,
   });
 
-  return NextResponse.json({ analysis });
+  return NextResponse.json({ analysis, profile });
 }

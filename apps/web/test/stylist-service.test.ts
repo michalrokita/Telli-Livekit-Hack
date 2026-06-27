@@ -84,15 +84,16 @@ describe('stylist service adapter', () => {
       return { ok: true, stdout: JSON.stringify(styleProfile) };
     });
 
-    const qualities = await tryAnalyzeWithStylist({
+    const result = await tryAnalyzeWithStylist({
       imageDataUrl: 'data:image/png;base64,ZGVtbw==',
       category: 'hats',
       runner,
     });
 
     expect(runner).toHaveBeenCalledOnce();
-    expect(qualities?.hairColor).toBe('dark brown');
-    expect(qualities?.palette).toBe('autumn');
+    expect(result?.qualities.hairColor).toBe('dark brown');
+    expect(result?.qualities.palette).toBe('autumn');
+    expect(result?.profile).toEqual(styleProfile);
   });
 
   it('falls back to shopper-flow analysis when stylist analyze is unavailable', async () => {
@@ -101,13 +102,13 @@ describe('stylist service adapter', () => {
       throw new Error('python unavailable');
     });
 
-    const qualities = await createTryOnJobsWithStylistFallback.analyze({
+    const { analysis } = await createTryOnJobsWithStylistFallback.analyze({
       imageDataUrl: 'data:image/png;base64,ZGVtbw==',
       category: 'hats',
       runner,
     });
 
-    expect(qualities.summary.toLowerCase()).toContain('hat');
+    expect(analysis.summary.toLowerCase()).toContain('hat');
   });
 
   it('does not silently mock analysis when live stylist mode fails', async () => {
