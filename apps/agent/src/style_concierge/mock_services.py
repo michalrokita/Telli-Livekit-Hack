@@ -31,27 +31,13 @@ _CATEGORY_COPY = {
     },
 }
 
-_PRODUCT_NAMES = {
-    "hats": [
-        ("hat-1", "Alder Wool Baseball Cap", "Deep olive"),
-        ("hat-2", "Sable Brushed Twill Cap", "Washed black"),
-        ("hat-3", "Marin Short-Brim Cap", "Tobacco tan"),
-        ("hat-4", "Northline Felted Five-Panel", "Charcoal"),
-        ("hat-5", "Canyon Suede Dad Hat", "Warm taupe"),
-    ],
-    "tshirts": [
-        ("tee-1", "Miro Heavyweight Crew", "Bone white"),
-        ("tee-2", "Porter Pima Relaxed Tee", "Forest green"),
-        ("tee-3", "Sana Supima Box Tee", "Washed black"),
-        ("tee-4", "Vale Mercerized Tee", "Clay beige"),
-        ("tee-5", "Orion Rib Collar Tee", "Midnight navy"),
-    ],
-}
-
-_BASE_PRICES = {
-    "hats": [48, 42, 54, 58, 64],
-    "tshirts": [62, 68, 58, 72, 64],
-}
+_LOMA_PRODUCTS = [
+    ("clay", "Clay Pocket Tee", "Clay", 48, "tshirts"),
+    ("bone", "Bone Boxy Tee", "Bone", 52, "tshirts"),
+    ("olive", "Olive Heavyweight", "Muted olive", 54, "tshirts"),
+    ("camel", "Camel Cord Cap", "Camel", 42, "hats"),
+    ("char", "Charcoal 5-Panel", "Charcoal", 44, "hats"),
+]
 
 
 def _normalize_category(category: str) -> str:
@@ -125,8 +111,6 @@ def search_products(
     category_key = _normalize_category(category)
     copy = _copy_category(category_key)
     qualities = qualities or {}
-    products = _PRODUCT_NAMES[category_key]
-    prices = _BASE_PRICES[category_key]
     style_goal_text = style_goal.strip() or "an easy, polished everyday look"
     hair_color = qualities.get("hair_color", "dark brown")
     skin_tone = qualities.get("skin_tone", "warm olive")
@@ -135,10 +119,10 @@ def search_products(
     return [
         {
             "id": product_id,
-            "category": category_key,
+            "category": product_category,
             "name": name,
             "color": color,
-            "price": prices[index],
+            "price": price,
             "currency": "USD",
             "image_url": f"https://demo.style-concierge.local/products/{product_id}.jpg",
             "match_score": round(0.96 - (index * 0.035), 3),
@@ -153,11 +137,11 @@ def search_products(
             ),
             "inventory": {
                 "status": "in_stock",
-                "available_sizes": ["S", "M", "L", "XL"] if category_key == "tshirts" else ["OS"],
+                "available_sizes": ["S", "M", "L", "XL"] if product_category == "tshirts" else ["OS"],
                 "ships_in_days": 2 + (index % 2),
             },
         }
-        for index, (product_id, name, color) in enumerate(products)
+        for index, (product_id, name, color, price, product_category) in enumerate(_LOMA_PRODUCTS)
     ]
 
 

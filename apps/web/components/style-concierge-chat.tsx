@@ -12,10 +12,10 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
   StartAudio,
+  useRoomContext,
   useVoiceAssistant,
 } from '@livekit/components-react';
 import {
-  Camera,
   Check,
   CreditCard,
   Mic,
@@ -40,6 +40,20 @@ import {
   type VoiceState,
 } from '@/lib/demo-script';
 import { requestLiveKitSession } from '@/lib/livekit-session';
+import {
+  cameraAttributesFromQualities,
+  createEmptyDeliveryDetails,
+  isDeliveryDetailsComplete,
+  normalizeRpcCategory,
+  normalizeDeliveryDetailsPayload,
+  parseRpcPayload,
+  resolveLomaProductIdsFromPayload,
+  resolveLiveDisplayProducts,
+  type CheckoutDeliveryDetails,
+  voiceStateFromAgentState,
+  withTimeoutFallback,
+} from '@/lib/mira-live-flow';
+import { analyzeCustomerImage, type CustomerQualities } from '@/lib/shopper-flow';
 
 type StyleConciergeChatProps = {
   cartCount: number;
@@ -68,7 +82,14 @@ type CameraMessage = {
   kind: 'camera';
   status: 'preview' | 'captured' | 'analyzing';
   attrs: CameraAttribute[];
+  countdown?: number;
   showAttrs?: boolean;
+  prompt?: string;
+  actionLabel?: string;
+  actionBusy?: boolean;
+  filter?: 'none' | 'bright' | 'warm';
+  photoDataUrl?: string;
+  error?: string;
 };
 
 type ProfileMessage = {
@@ -98,12 +119,17 @@ type TryOnCard = LomaProduct & {
 type TryOnMessage = {
   id: string;
   kind: 'tryon';
+  title?: string;
+  subtitle?: string;
   items: TryOnCard[];
 };
 
 type CheckoutMessage = {
   id: string;
   kind: 'checkout';
+  delivery: CheckoutDeliveryDetails;
+  deliveryComplete: boolean;
+  items: LomaProduct[];
 };
 
 type SuccessMessage = {
@@ -138,6 +164,29 @@ type VoiceBridgeStatus = {
   };
 };
 
+type PendingCapture = {
+  category: 'hats' | 'tshirts';
+  captureStarted: boolean;
+  generation: number;
+  messageId: string;
+  result: Promise<string>;
+  resolve: (value: string) => void;
+  reject: (reason?: unknown) => void;
+};
+
+type CameraController = {
+  capture: () => DemoCaptureResult;
+};
+
+type MiraRpcHandlers = {
+  prepareCustomerCamera: (payload: unknown) => Promise<string>;
+  captureCustomerImage: (payload: unknown) => Promise<string>;
+  showProductRecommendations: (payload: unknown) => Promise<string>;
+  generateTryOns: (payload: unknown) => Promise<string>;
+  addToCart: (payload: unknown) => Promise<string>;
+  fillCheckoutDelivery: (payload: unknown) => Promise<string>;
+};
+
 const voiceColors: Record<VoiceState, string> = {
   idle: '#9A8C7C',
   connecting: '#B0917C',
@@ -145,6 +194,8 @@ const voiceColors: Record<VoiceState, string> = {
   thinking: '#C19A45',
   speaking: '#C16A45',
 };
+
+const CAMERA_PREVIEW_READY_TIMEOUT_MS = 1600;
 
 export function StyleConciergeChat({
   cartCount,
@@ -169,6 +220,14 @@ export function StyleConciergeChat({
   const runningRef = useRef(false);
   const runIdRef = useRef(0);
   const ampRef = useRef(0.16);
+  const pendingCaptureRef = useRef<PendingCapture | null>(null);
+  const activeCameraMessageIdRef = useRef<string | null>(null);
+  const cameraControllersRef = useRef<Map<string, CameraController>>(new Map());
+  const cameraReadyWaitersRef = useRef<Map<string, (status: string) => void>>(new Map());
+  const captureGenerationRef = useRef(0);
+  const liveRecommendationsIdRef = useRef<string | null>(null);
+  const liveTryOnIdRef = useRef<string | null>(null);
+  const liveCheckoutIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     voiceStateRef.current = voiceState;
@@ -182,6 +241,12 @@ export function StyleConciergeChat({
   const stopDemo = useCallback(() => {
     runningRef.current = false;
     runIdRef.current += 1;
+    pendingCaptureRef.current?.reject(new Error('Mira chat was closed before capture finished.'));
+    pendingCaptureRef.current = null;
+    captureGenerationRef.current += 1;
+    cameraReadyWaitersRef.current.forEach((resolve) => resolve('cancelled'));
+    cameraReadyWaitersRef.current.clear();
+    liveCheckoutIdRef.current = null;
     clearDemoTimers();
   }, [clearDemoTimers]);
 
@@ -198,6 +263,24 @@ export function StyleConciergeChat({
       el.scrollTop = el.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!chatOpen || !liveKitReadiness.configured) {
+      return;
+    }
+
+    stopDemo();
+    setDemoStarted(true);
+    setMessages([]);
+    setVoiceState('connecting');
+    activeCameraMessageIdRef.current = null;
+    cameraControllersRef.current.clear();
+    cameraReadyWaitersRef.current.clear();
+    captureGenerationRef.current += 1;
+    liveRecommendationsIdRef.current = null;
+    liveTryOnIdRef.current = null;
+    liveCheckoutIdRef.current = null;
+  }, [chatOpen, liveKitReadiness.configured, stopDemo]);
 
   useEffect(() => {
     if (!chatOpen) {
@@ -420,6 +503,543 @@ export function StyleConciergeChat({
     timersRef.current.push(timer);
   }
 
+  async function revealCameraAnalysis(messageId: string, qualities: CustomerQualities) {
+    const attrs = cameraAttributesFromQualities(qualities);
+
+    setVoiceState('thinking');
+    patchMsg(messageId, (message) =>
+      message.kind === 'camera'
+        ? {
+            ...message,
+            status: 'analyzing',
+            attrs,
+            showAttrs: true,
+            actionLabel: undefined,
+            actionBusy: false,
+          }
+        : message,
+    );
+
+    for (const index of attrs.keys()) {
+      await sleep(480);
+
+      patchMsg(messageId, (message) => {
+        if (message.kind !== 'camera') {
+          return message;
+        }
+
+        return {
+          ...message,
+          attrs: message.attrs.map((attr, attrIndex) =>
+            attrIndex === index ? { ...attr, on: true } : attr,
+          ),
+        };
+      });
+    }
+
+    await sleep(380);
+    setVoiceState('speaking');
+    addMsg({
+      kind: 'profile',
+      chips: [
+        { label: '', value: 'Warm undertone' },
+        { label: '', value: 'Olive skin' },
+        { label: '', value: 'Deep brown hair' },
+        { label: '', value: 'Soft contrast' },
+        { label: '', value: 'Relaxed fit' },
+      ],
+    });
+  }
+
+  function isCurrentCapture(pending: PendingCapture) {
+    return (
+      pendingCaptureRef.current === pending &&
+      captureGenerationRef.current === pending.generation
+    );
+  }
+
+  function claimPendingCapture(messageId: string) {
+    const pending = pendingCaptureRef.current;
+
+    if (!pending || pending.messageId !== messageId) {
+      return null;
+    }
+
+    if (pending.captureStarted) {
+      return null;
+    }
+    pending.captureStarted = true;
+
+    return pending;
+  }
+
+  function setCameraController(messageId: string, controller: CameraController | null) {
+    if (controller) {
+      cameraControllersRef.current.set(messageId, controller);
+      cameraReadyWaitersRef.current.get(messageId)?.('controller-ready');
+      cameraReadyWaitersRef.current.delete(messageId);
+      return;
+    }
+
+    cameraControllersRef.current.delete(messageId);
+  }
+
+  function captureActiveCameraFrame(messageId: string): DemoCaptureResult {
+    const controller = cameraControllersRef.current.get(messageId);
+
+    if (controller) {
+      return controller.capture();
+    }
+
+    return {
+      imageDataUrl: createFallbackSelfieDataUrl(),
+      source: 'fallback',
+      error: 'Camera preview was not ready, so Mira used a demo frame.',
+    };
+  }
+
+  async function finishCameraCapture(
+    messageId: string,
+    pending: PendingCapture,
+    capture: DemoCaptureResult,
+  ) {
+    if (!isCurrentCapture(pending)) {
+      return;
+    }
+
+    patchMsg(messageId, (message) =>
+      message.kind === 'camera'
+        ? {
+            ...message,
+            status: 'captured',
+            photoDataUrl: capture.imageDataUrl,
+            countdown: undefined,
+            filter: capture.source === 'camera' ? 'bright' : 'none',
+            prompt:
+              capture.source === 'camera'
+                ? "Photo captured. If you don't like it, tell Mira to retake it."
+                : "Demo capture ready. If you don't like it, tell Mira to retake it.",
+            actionLabel: undefined,
+            actionBusy: false,
+            error: capture.error,
+          }
+        : message,
+    );
+
+    await sleep(520);
+
+    if (!isCurrentCapture(pending)) {
+      return;
+    }
+
+    const qualities = await analyzeCustomerImage({
+      imageDataUrl: capture.imageDataUrl,
+      category: pending.category,
+    });
+
+    if (!isCurrentCapture(pending)) {
+      return;
+    }
+
+    await revealCameraAnalysis(messageId, qualities);
+
+    if (!isCurrentCapture(pending)) {
+      return;
+    }
+
+    pending.resolve(
+      JSON.stringify({
+        status: 'complete',
+        imageRef: `browser-camera-${Date.now().toString(36)}`,
+        imageDataUrl: capture.imageDataUrl,
+        captureSource: capture.source,
+        category: pending.category,
+        qualities,
+      }),
+    );
+    pendingCaptureRef.current = null;
+    activeCameraMessageIdRef.current = null;
+  }
+
+  async function runVoiceCaptureCountdown(messageId: string) {
+    const pending = claimPendingCapture(messageId);
+
+    if (!pending) {
+      return;
+    }
+
+    setVoiceState('thinking');
+
+    for (const count of [3, 2, 1]) {
+      if (!isCurrentCapture(pending)) {
+        return;
+      }
+
+      patchMsg(messageId, (message) =>
+        message.kind === 'camera'
+          ? {
+              ...message,
+              countdown: count,
+              prompt: `Taking it in ${count}...`,
+            }
+          : message,
+      );
+      await sleep(650);
+    }
+
+    if (!isCurrentCapture(pending)) {
+      return;
+    }
+
+    patchMsg(messageId, (message) =>
+      message.kind === 'camera'
+        ? {
+            ...message,
+            countdown: undefined,
+            prompt: 'Snapping now...',
+          }
+        : message,
+    );
+
+    const capture = captureActiveCameraFrame(messageId);
+    await finishCameraCapture(messageId, pending, capture);
+  }
+
+  async function prepareCustomerCameraRpc(payload: unknown) {
+    if (pendingCaptureRef.current) {
+      pendingCaptureRef.current.reject(new Error('Camera capture was reset before finishing.'));
+      pendingCaptureRef.current = null;
+    }
+
+    captureGenerationRef.current += 1;
+    const category = normalizeRpcCategory(payload);
+    const placeholder: CustomerQualities = {
+      hairColor: 'Waiting...',
+      skinTone: 'Waiting...',
+      undertone: 'Waiting...',
+      contrast: 'medium',
+      styleNotes: [],
+      summary: '',
+    };
+
+    setDemoStarted(true);
+    setVoiceState('listening');
+
+    const existingMessageId = activeCameraMessageIdRef.current;
+    const messageInput = {
+      kind: 'camera' as const,
+      status: 'preview' as const,
+      attrs: cameraAttributesFromQualities(placeholder),
+      countdown: undefined,
+      showAttrs: false,
+      prompt: "Camera is open. Tell Mira \"I'm ready\" when you want the photo.",
+      actionLabel: undefined,
+      actionBusy: false,
+      filter: 'none' as const,
+      photoDataUrl: undefined,
+      error: undefined,
+    };
+    const messageId = existingMessageId ?? addMsg(messageInput);
+
+    if (existingMessageId) {
+      patchMsg(existingMessageId, (message) =>
+        message.kind === 'camera' ? { ...message, ...messageInput } : message,
+      );
+    }
+
+    activeCameraMessageIdRef.current = messageId;
+    const readiness = cameraControllersRef.current.has(messageId)
+      ? 'controller-ready'
+      : await withTimeoutFallback(
+          new Promise<string>((resolve) => {
+            cameraReadyWaitersRef.current.set(messageId, resolve);
+          }),
+          CAMERA_PREVIEW_READY_TIMEOUT_MS,
+          () => 'preview-timeout',
+        );
+    cameraReadyWaitersRef.current.delete(messageId);
+
+    return JSON.stringify({
+      status: 'ready',
+      readiness,
+      cameraSessionId: messageId,
+      category,
+    });
+  }
+
+  async function captureCustomerImageRpc(payload: unknown) {
+    if (pendingCaptureRef.current) {
+      return pendingCaptureRef.current.result;
+    }
+
+    const category = normalizeRpcCategory(payload);
+    let messageId = activeCameraMessageIdRef.current;
+
+    if (!messageId) {
+      const prepared = parseRpcPayload(await prepareCustomerCameraRpc(payload));
+      messageId =
+        typeof prepared === 'object' && prepared
+          ? String((prepared as { cameraSessionId?: unknown }).cameraSessionId ?? '')
+          : '';
+    }
+
+    if (!messageId) {
+      throw new Error('Unable to prepare camera capture.');
+    }
+
+    let resolveCapture: PendingCapture['resolve'] | undefined;
+    let rejectCapture: PendingCapture['reject'] | undefined;
+    const result = new Promise<string>((resolve, reject) => {
+      resolveCapture = resolve;
+      rejectCapture = reject;
+    });
+
+    if (!resolveCapture || !rejectCapture) {
+      throw new Error('Unable to initialize camera capture.');
+    }
+
+    pendingCaptureRef.current = {
+      category,
+      captureStarted: false,
+      generation: captureGenerationRef.current,
+      messageId,
+      result,
+      resolve: resolveCapture,
+      reject: rejectCapture,
+    };
+
+    const captureTimer = window.setTimeout(() => {
+      timersRef.current = timersRef.current.filter((item) => item !== captureTimer);
+      void runVoiceCaptureCountdown(messageId);
+    }, 150);
+    timersRef.current.push(captureTimer);
+
+    return result;
+  }
+
+  function handleCameraRetake(messageId: string) {
+    if (pendingCaptureRef.current) {
+      pendingCaptureRef.current.reject(new Error('Camera capture was retaken before analysis finished.'));
+      pendingCaptureRef.current = null;
+    }
+    captureGenerationRef.current += 1;
+    activeCameraMessageIdRef.current = messageId;
+    patchMsg(messageId, (message) =>
+      message.kind === 'camera'
+        ? {
+            ...message,
+            status: 'preview',
+            countdown: undefined,
+            photoDataUrl: undefined,
+            showAttrs: false,
+            prompt: "No problem. Tell Mira \"I'm ready\" when you want the next photo.",
+            actionLabel: undefined,
+            actionBusy: false,
+            error: undefined,
+          }
+        : message,
+    );
+    setVoiceState('listening');
+  }
+
+  function handleCameraFilter(messageId: string, filter: CameraMessage['filter']) {
+    patchMsg(messageId, (message) =>
+      message.kind === 'camera' ? { ...message, filter } : message,
+    );
+  }
+
+  async function showProductRecommendationsRpc(payload: unknown) {
+    const products = resolveLiveDisplayProducts(readProductPayload(payload));
+    const recsId = addMsg({
+      kind: 'recs',
+      cards: products.map((product) => ({
+        ...product,
+        why: product.recommendationReason,
+        selected: false,
+      })),
+    });
+
+    liveRecommendationsIdRef.current = recsId;
+    setDemoStarted(true);
+    setVoiceState('speaking');
+    addTimedVoiceReset(1000);
+
+    return JSON.stringify({
+      status: 'shown',
+      displayedProductIds: products.map((product) => product.id),
+    });
+  }
+
+  async function generateTryOnsRpc(payload: unknown) {
+    const selectedProductIds = readProductIds(payload);
+    const selectedProducts = resolveLiveDisplayProducts({ selectedProductIds });
+    const recsId = liveRecommendationsIdRef.current;
+
+    if (recsId) {
+      patchMsg(recsId, (message) => {
+        if (message.kind !== 'recs') {
+          return message;
+        }
+
+        return {
+          ...message,
+          cards: message.cards.map((card) => ({
+            ...card,
+            selected: selectedProducts.some((product) => product.id === card.id),
+          })),
+        };
+      });
+    }
+
+    setVoiceState('thinking');
+    const tryOnId = addMsg({
+      kind: 'tryon',
+      title: 'Rendering your try-ons',
+      subtitle: selectedProducts.map((product) => product.name).join(' + '),
+      items: selectedProducts.map((product) => ({
+        ...product,
+        status: 'gen' as const,
+        genLabel: `Rendering ${product.name}`,
+      })),
+    });
+    liveTryOnIdRef.current = tryOnId;
+
+    const tryOnJobs = await createLomaTryOnJobs(selectedProducts);
+    const jobsByProductId = new Map(tryOnJobs.map((job) => [job.productId, job]));
+
+    for (const [index, product] of selectedProducts.entries()) {
+      await sleep(index === 0 ? 1500 : 1050);
+      patchMsg(tryOnId, (message) => {
+        if (message.kind !== 'tryon') {
+          return message;
+        }
+
+        const remaining = Math.max(0, selectedProducts.length - index - 1);
+
+        return {
+          ...message,
+          title: remaining > 0 ? 'Rendering your try-ons' : 'Your try-ons are ready',
+          subtitle:
+            remaining > 0
+              ? `${remaining} preview${remaining === 1 ? '' : 's'} still polishing`
+              : 'Tell Mira which product names you want to add.',
+          items: message.items.map((item) =>
+            item.id === product.id
+              ? {
+                  ...item,
+                  status: 'done' as const,
+                  renderedImageUrl: jobsByProductId.get(item.id)?.imageUrl ?? item.tryOnImageUrl,
+                }
+              : item,
+          ),
+        };
+      });
+    }
+
+    patchMsg(tryOnId, (message) => {
+      if (message.kind !== 'tryon') {
+        return message;
+      }
+
+      return {
+        ...message,
+        title: 'Your try-ons are ready',
+        subtitle: 'Tell Mira which product names you want to add.',
+        items: message.items.map((item) => ({
+          ...item,
+          status: 'done' as const,
+          renderedImageUrl: jobsByProductId.get(item.id)?.imageUrl ?? item.tryOnImageUrl,
+        })),
+      };
+    });
+
+    setVoiceState('speaking');
+    addTimedVoiceReset(1200);
+
+    return JSON.stringify({
+      status: 'complete',
+      images: tryOnJobs,
+      selectedProducts: selectedProducts.map((product) => ({ id: product.id, name: product.name })),
+    });
+  }
+
+  function addCheckoutMessage(items: LomaProduct[]) {
+    const checkoutId = addMsg({
+      kind: 'checkout',
+      items,
+      delivery: createEmptyDeliveryDetails(),
+      deliveryComplete: false,
+    });
+    liveCheckoutIdRef.current = checkoutId;
+    return checkoutId;
+  }
+
+  async function addToCartRpc(payload: unknown) {
+    const productIds = readProductIds(payload);
+    const selectedProducts = resolveLiveDisplayProducts({ selectedProductIds: productIds });
+
+    onAddToCart(selectedProducts, true);
+
+    const tryOnId = liveTryOnIdRef.current;
+    if (tryOnId) {
+      patchMsg(tryOnId, (message) => {
+        if (message.kind !== 'tryon') {
+          return message;
+        }
+
+        return {
+          ...message,
+          items: message.items.map((item) => ({
+            ...item,
+            added: selectedProducts.some((product) => product.id === item.id),
+          })),
+        };
+      });
+    }
+
+    addCheckoutMessage(selectedProducts);
+    setVoiceState('speaking');
+    addTimedVoiceReset(1000);
+
+    return JSON.stringify({
+      status: 'added',
+      addedProductIds: selectedProducts.map((product) => product.id),
+      itemCount: cartCount + selectedProducts.length,
+      checkout: {
+        deliveryStatus: 'waiting_for_details',
+      },
+    });
+  }
+
+  async function fillCheckoutDeliveryRpc(payload: unknown) {
+    const delivery = normalizeDeliveryDetailsPayload(payload);
+    const deliveryComplete = isDeliveryDetailsComplete(delivery);
+    let checkoutId = liveCheckoutIdRef.current;
+
+    if (!checkoutId) {
+      checkoutId = addCheckoutMessage(getSelectedDemoProducts());
+    }
+
+    patchMsg(checkoutId, (message) =>
+      message.kind === 'checkout'
+        ? {
+            ...message,
+            delivery,
+            deliveryComplete,
+          }
+        : message,
+    );
+
+    setVoiceState('speaking');
+    addTimedVoiceReset(1000);
+
+    return JSON.stringify({
+      status: deliveryComplete ? 'filled' : 'partial',
+      deliveryComplete,
+      delivery,
+    });
+  }
+
   const playDemo = useCallback(async () => {
     stopDemo();
 
@@ -611,18 +1231,48 @@ export function StyleConciergeChat({
     setVoiceState('thinking');
     const tryOnId = addMsg({
       kind: 'tryon',
+      title: 'Rendering your try-ons',
+      subtitle: selectedProducts.map((product) => product.name).join(' + '),
       items: selectedProducts.map((product) => ({
         ...product,
-        status: 'gen',
-        genLabel: 'Styling...',
+        status: 'gen' as const,
+        genLabel: `Rendering ${product.name}`,
       })),
     });
 
     const tryOnJobs = await createLomaTryOnJobs(selectedProducts);
     const jobsByProductId = new Map(tryOnJobs.map((job) => [job.productId, job]));
 
-    await sleep(2300);
-    if (!stillRunning()) return;
+    for (const [index, product] of selectedProducts.entries()) {
+      await sleep(index === 0 ? 2200 : 1100);
+      if (!stillRunning()) return;
+
+      patchMsg(tryOnId, (message) => {
+        if (message.kind !== 'tryon') {
+          return message;
+        }
+
+        const remaining = Math.max(0, selectedProducts.length - index - 1);
+
+        return {
+          ...message,
+          title: remaining > 0 ? 'Rendering your try-ons' : 'Your try-ons are ready',
+          subtitle:
+            remaining > 0
+              ? `${remaining} preview${remaining === 1 ? '' : 's'} still polishing`
+              : 'Tell Mira which product names you want to add.',
+          items: message.items.map((item) =>
+            item.id === product.id
+              ? {
+                  ...item,
+                  status: 'done' as const,
+                  renderedImageUrl: jobsByProductId.get(item.id)?.imageUrl ?? item.tryOnImageUrl,
+                }
+              : item,
+          ),
+        };
+      });
+    }
 
     patchMsg(tryOnId, (message) => {
       if (message.kind !== 'tryon') {
@@ -631,31 +1281,11 @@ export function StyleConciergeChat({
 
       return {
         ...message,
-        items: message.items.map((item, index) =>
-          index === 0
-            ? {
-                ...item,
-                status: 'done',
-                renderedImageUrl: jobsByProductId.get(item.id)?.imageUrl ?? item.tryOnImageUrl,
-              }
-            : item,
-        ),
-      };
-    });
-
-    await sleep(1000);
-    if (!stillRunning()) return;
-
-    patchMsg(tryOnId, (message) => {
-      if (message.kind !== 'tryon') {
-        return message;
-      }
-
-      return {
-        ...message,
+        title: 'Your try-ons are ready',
+        subtitle: 'Tell Mira which product names you want to add.',
         items: message.items.map((item) => ({
           ...item,
-          status: 'done',
+          status: 'done' as const,
           renderedImageUrl: jobsByProductId.get(item.id)?.imageUrl ?? item.tryOnImageUrl,
         })),
       };
@@ -727,7 +1357,26 @@ export function StyleConciergeChat({
     if (!stillRunning()) return;
 
     setVoiceState('speaking');
-    addMsg({ kind: 'checkout' });
+    addCheckoutMessage(selectedProducts);
+    await sleep(800);
+    if (!stillRunning()) return;
+
+    patchMsg(liveCheckoutIdRef.current ?? '', (message) =>
+      message.kind === 'checkout'
+        ? {
+            ...message,
+            delivery: {
+              recipient: deliveryDetails.recipient,
+              address: deliveryDetails.address,
+              city: 'New York',
+              state: 'NY',
+              postalCode: deliveryDetails.postalCode,
+              phone: '(212) 555-0198',
+            },
+            deliveryComplete: true,
+          }
+        : message,
+    );
     setVoiceState('idle');
     runningRef.current = false;
   }, [onAddToCart, sleep, stopDemo]);
@@ -753,6 +1402,15 @@ export function StyleConciergeChat({
   }
 
   const statusLabel = voiceStateLabels[voiceState];
+  const isLiveMode = liveKitReadiness.configured;
+  const rpcHandlers: MiraRpcHandlers = {
+    prepareCustomerCamera: prepareCustomerCameraRpc,
+    captureCustomerImage: captureCustomerImageRpc,
+    showProductRecommendations: showProductRecommendationsRpc,
+    generateTryOns: generateTryOnsRpc,
+    addToCart: addToCartRpc,
+    fillCheckoutDelivery: fillCheckoutDeliveryRpc,
+  };
 
   return (
     <>
@@ -793,7 +1451,7 @@ export function StyleConciergeChat({
           >
             <header className="mira-head">
               <div className="mira-identity">
-                <span className="mira-avatar" aria-hidden="true" />
+                <canvas ref={orbRef} className="mira-orb" aria-hidden="true" />
                 <div>
                   <h2>Mira</h2>
                   <span style={{ '--status-color': voiceColors[voiceState] } as CSSProperties}>
@@ -814,41 +1472,51 @@ export function StyleConciergeChat({
               </div>
             </header>
 
-            <div className={demoStarted ? 'mira-viz is-compact' : 'mira-viz'}>
-              <canvas ref={orbRef} aria-hidden="true" />
-              {!demoStarted ? <span>{statusLabel}</span> : null}
-            </div>
-
             <VoiceBridgeStrip bridge={voiceBridge} />
 
             {voiceBridge.session ? (
               <LiveKitVoiceRoom
+                rpcHandlers={rpcHandlers}
                 session={voiceBridge.session}
                 onConnected={() =>
-                  setVoiceBridge((current) => ({
-                    ...current,
-                    state: 'connected',
-                    detail: 'Live voice room connected. Mira is listening.',
-                  }))
+                  {
+                    setVoiceState('listening');
+                    setVoiceBridge((current) => ({
+                      ...current,
+                      state: 'connected',
+                      detail: 'Live voice room connected. Mira is listening.',
+                    }));
+                  }
                 }
-                onDisconnected={() =>
+                onDisconnected={() => {
+                  setVoiceState('idle');
                   setVoiceBridge((current) => ({
                     ...current,
                     state: 'fallback',
                     detail: 'Live voice room disconnected. Mock demo remains available.',
-                  }))
-                }
-                onError={(error) =>
+                  }));
+                }}
+                onError={(error) => {
+                  setVoiceState('idle');
                   setVoiceBridge((current) => ({
                     ...current,
                     state: 'error',
                     detail: error.message,
-                  }))
-                }
+                  }));
+                }}
+                onAgentVoiceStateChange={(nextVoiceState) => {
+                  setVoiceState((current) => {
+                    if (voiceBridge.state === 'connected' && nextVoiceState === 'connecting') {
+                      return current === 'connecting' ? 'listening' : current;
+                    }
+
+                    return nextVoiceState;
+                  });
+                }}
               />
             ) : null}
 
-            {!demoStarted ? (
+            {!demoStarted && !isLiveMode ? (
               <div className="mira-intro">
                 <h3>Hey - I'm Mira.</h3>
                 <p>
@@ -868,8 +1536,16 @@ export function StyleConciergeChat({
             ) : (
               <>
                 <div className="mira-thread loma-scroll" ref={scrollRef}>
+                  {messages.length === 0 && isLiveMode ? <LiveThreadEmptyState /> : null}
                   {messages.map((message) => (
-                    <MessageFrame key={message.id} message={message} onPayNow={payNow} />
+                    <MessageFrame
+                      key={message.id}
+                      message={message}
+                      onCameraController={setCameraController}
+                      onCameraFilter={handleCameraFilter}
+                      onCameraRetake={handleCameraRetake}
+                      onPayNow={payNow}
+                    />
                   ))}
                 </div>
 
@@ -921,6 +1597,7 @@ function VoiceBridgeStrip({ bridge }: VoiceBridgeStripProps) {
 }
 
 type LiveKitVoiceRoomProps = {
+  rpcHandlers: MiraRpcHandlers;
   session: {
     serverUrl: string;
     participantToken: string;
@@ -928,13 +1605,16 @@ type LiveKitVoiceRoomProps = {
   onConnected: () => void;
   onDisconnected: () => void;
   onError: (error: Error) => void;
+  onAgentVoiceStateChange: (voiceState: VoiceState) => void;
 };
 
 function LiveKitVoiceRoom({
+  rpcHandlers,
   session,
   onConnected,
   onDisconnected,
   onError,
+  onAgentVoiceStateChange,
 }: LiveKitVoiceRoomProps) {
   return (
     <LiveKitRoom
@@ -950,14 +1630,59 @@ function LiveKitVoiceRoom({
     >
       <RoomAudioRenderer />
       <StartAudio className="livekit-start-audio" label="Enable voice" />
-      <LiveKitAssistantStatus />
+      <LiveKitBrowserRpcBridge handlers={rpcHandlers} />
+      <LiveKitAssistantStatus onVoiceStateChange={onAgentVoiceStateChange} />
     </LiveKitRoom>
   );
 }
 
-function LiveKitAssistantStatus() {
+type LiveKitBrowserRpcBridgeProps = {
+  handlers: MiraRpcHandlers;
+};
+
+function LiveKitBrowserRpcBridge({ handlers }: LiveKitBrowserRpcBridgeProps) {
+  const room = useRoomContext();
+  const handlersRef = useRef(handlers);
+
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
+
+  useEffect(() => {
+    const methods = [
+      'prepareCustomerCamera',
+      'captureCustomerImage',
+      'showProductRecommendations',
+      'generateTryOns',
+      'addToCart',
+      'fillCheckoutDelivery',
+    ] as const;
+
+    methods.forEach((method) => {
+      room.registerRpcMethod(method, async (data) =>
+        handlersRef.current[method](parseRpcPayload(data.payload)),
+      );
+    });
+
+    return () => {
+      methods.forEach((method) => room.unregisterRpcMethod(method));
+    };
+  }, [room]);
+
+  return null;
+}
+
+type LiveKitAssistantStatusProps = {
+  onVoiceStateChange: (voiceState: VoiceState) => void;
+};
+
+function LiveKitAssistantStatus({ onVoiceStateChange }: LiveKitAssistantStatusProps) {
   const { state, agentTranscriptions } = useVoiceAssistant();
   const latestAgentText = agentTranscriptions.at(-1)?.text;
+
+  useEffect(() => {
+    onVoiceStateChange(voiceStateFromAgentState(state));
+  }, [onVoiceStateChange, state]);
 
   return (
     <div className="livekit-agent-state">
@@ -968,12 +1693,33 @@ function LiveKitAssistantStatus() {
   );
 }
 
+function LiveThreadEmptyState() {
+  return (
+    <div className="live-thread-empty">
+      <span aria-hidden="true" />
+      <div>
+        <strong>Mira is listening</strong>
+        <p>Say hats or t-shirts to begin the camera styling flow.</p>
+      </div>
+    </div>
+  );
+}
+
 type MessageFrameProps = {
   message: MiraMessage;
+  onCameraController: (messageId: string, controller: CameraController | null) => void;
+  onCameraFilter: (messageId: string, filter: CameraMessage['filter']) => void;
+  onCameraRetake: (messageId: string) => void;
   onPayNow: () => void;
 };
 
-function MessageFrame({ message, onPayNow }: MessageFrameProps) {
+function MessageFrame({
+  message,
+  onCameraController,
+  onCameraFilter,
+  onCameraRetake,
+  onPayNow,
+}: MessageFrameProps) {
   const frameClass =
     message.kind === 'text' && message.role === 'user' ? 'message-frame user' : 'message-frame';
 
@@ -984,12 +1730,18 @@ function MessageFrame({ message, onPayNow }: MessageFrameProps) {
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.28 }}
     >
-      {renderMessage(message, onPayNow)}
+      {renderMessage(message, onCameraController, onCameraFilter, onCameraRetake, onPayNow)}
     </motion.div>
   );
 }
 
-function renderMessage(message: MiraMessage, onPayNow: () => void) {
+function renderMessage(
+  message: MiraMessage,
+  onCameraController: (messageId: string, controller: CameraController | null) => void,
+  onCameraFilter: (messageId: string, filter: CameraMessage['filter']) => void,
+  onCameraRetake: (messageId: string) => void,
+  onPayNow: () => void,
+) {
   if (message.kind === 'text') {
     return (
       <div className={message.role === 'user' ? 'text-bubble user' : 'text-bubble'}>
@@ -1001,19 +1753,32 @@ function renderMessage(message: MiraMessage, onPayNow: () => void) {
   if (message.kind === 'camera') {
     const isAnalyzing = message.status === 'analyzing';
     const isCaptured = message.status === 'captured' || message.status === 'analyzing';
+    const canEditCapture = Boolean(message.photoDataUrl && message.status === 'captured');
 
     return (
       <div className="camera-card">
         <div className="camera-preview">
-          <div aria-hidden="true" />
+          {message.photoDataUrl ? (
+            <img
+              className={`camera-photo ${message.filter ? `filter-${message.filter}` : 'filter-none'}`}
+              src={message.photoDataUrl}
+              alt="Captured customer"
+            />
+          ) : message.status === 'preview' ? (
+            <LiveCameraPreview messageId={message.id} onController={onCameraController} />
+          ) : (
+            <div aria-hidden="true" />
+          )}
+          {message.countdown ? (
+            <span className="camera-countdown" aria-live="polite">
+              {message.countdown}
+            </span>
+          ) : null}
           {message.status === 'preview' ? (
-            <>
-              <span className="live-chip">
-                <i />
-                LIVE
-              </span>
-              <span className="shutter-dot" aria-hidden="true" />
-            </>
+            <span className="live-chip">
+              <i />
+              LIVE
+            </span>
           ) : null}
           {isAnalyzing ? <span className="scan-line" aria-hidden="true" /> : null}
           {isCaptured ? (
@@ -1022,6 +1787,34 @@ function renderMessage(message: MiraMessage, onPayNow: () => void) {
             </span>
           ) : null}
         </div>
+
+        {message.prompt ? (
+          <div className="camera-prompt">
+            <p>{message.prompt}</p>
+            {message.actionLabel ? (
+              <button
+                type="button"
+                disabled={Boolean(message.actionBusy)}
+              >
+                {message.actionBusy ? 'Opening...' : message.actionLabel}
+              </button>
+            ) : null}
+            {message.error ? <small>{message.error}</small> : null}
+            {canEditCapture ? (
+              <div className="camera-edit-bar">
+                <button type="button" onClick={() => onCameraFilter(message.id, 'bright')}>
+                  Brighten
+                </button>
+                <button type="button" onClick={() => onCameraFilter(message.id, 'warm')}>
+                  Warm
+                </button>
+                <button type="button" onClick={() => onCameraRetake(message.id)}>
+                  Retake
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {message.showAttrs ? (
           <div className="attribute-readout">
@@ -1091,75 +1884,100 @@ function renderMessage(message: MiraMessage, onPayNow: () => void) {
             </div>
           ))}
         </div>
-        <p>Swipe or tell Mira which you like</p>
+        <p>Swipe or tell Mira the product names you like</p>
       </div>
     );
   }
 
   if (message.kind === 'tryon') {
     return (
-      <div className="tryon-row">
-        {message.items.map((item) => (
-          <div
-            className="tryon-card"
-            key={item.id}
-            style={
-              {
-                '--tryon-color': item.color,
-                '--tryon-text': item.textColor,
-              } as CSSProperties
-            }
-          >
-            <div className={item.status === 'gen' ? 'tryon-art is-generating' : 'tryon-art'}>
-              {item.status === 'done' ? (
-                <>
-                  <img src={item.renderedImageUrl ?? item.tryOnImageUrl} alt={`${item.name} try-on`} />
-                  <span>YOU / AI TRY-ON</span>
-                </>
-              ) : (
-                <>
-                  <span className="spinner" aria-hidden="true" />
-                  <strong>{item.genLabel}</strong>
-                </>
-              )}
-            </div>
-            {item.status === 'done' ? (
-              <div className="tryon-copy">
-                <strong>{item.name}</strong>
-                <div>
-                  <span>{formatPrice(item.price)}</span>
-                  <button className={item.added ? 'is-added' : ''} type="button">
-                    {item.added ? 'Added' : 'Add'}
-                  </button>
-                </div>
-              </div>
-            ) : null}
+      <div className="tryon-group">
+        <div className="tryon-status">
+          <Sparkles size={15} aria-hidden="true" />
+          <div>
+            <strong>{message.title ?? 'Rendering your try-ons'}</strong>
+            {message.subtitle ? <span>{message.subtitle}</span> : null}
           </div>
-        ))}
+        </div>
+        <div className="tryon-row loma-scroll">
+          {message.items.map((item) => (
+            <div
+              className="tryon-card"
+              key={item.id}
+              style={
+                {
+                  '--tryon-color': item.color,
+                  '--tryon-text': item.textColor,
+                } as CSSProperties
+              }
+            >
+              <div className={item.status === 'gen' ? 'tryon-art is-generating' : 'tryon-art'}>
+                {item.status === 'done' ? (
+                  <>
+                    <img src={item.renderedImageUrl ?? item.tryOnImageUrl} alt={`${item.name} try-on`} />
+                    <span>YOU / AI TRY-ON</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="spinner" aria-hidden="true" />
+                    <strong>{item.genLabel}</strong>
+                  </>
+                )}
+              </div>
+              {item.status === 'done' ? (
+                <div className="tryon-copy">
+                  <strong>{item.name}</strong>
+                  <div>
+                    <span>{formatPrice(item.price)}</span>
+                    <button className={item.added ? 'is-added' : ''} type="button">
+                      {item.added ? 'Added' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   if (message.kind === 'checkout') {
-    const selectedProducts = getSelectedDemoProducts();
-    const total = selectedProducts.reduce((sum, product) => sum + product.price, 0);
+    const total = message.items.reduce((sum, product) => sum + product.price, 0);
+    const deliveryCityLine = [message.delivery.city, message.delivery.state]
+      .filter(Boolean)
+      .join(', ');
 
     return (
-      <div className="checkout-card">
-        <span>Delivery</span>
+      <div className={message.deliveryComplete ? 'checkout-card is-filled' : 'checkout-card'}>
+        <span>{message.deliveryComplete ? 'Delivery ready' : 'Delivery'}</span>
         <div className="checkout-fields">
-          <div>{deliveryDetails.recipient}</div>
-          <div>{deliveryDetails.address}</div>
-          <div>
-            <span>{deliveryDetails.city}</span>
-            <span>{deliveryDetails.postalCode}</span>
+          <div className={message.delivery.recipient ? 'checkout-field is-filled' : 'checkout-field is-empty'}>
+            {message.delivery.recipient || 'Recipient name'}
+          </div>
+          <div className={message.delivery.address ? 'checkout-field is-filled' : 'checkout-field is-empty'}>
+            {message.delivery.address || 'Street address'}
+          </div>
+          <div className="checkout-field-row">
+            <span className={deliveryCityLine ? 'checkout-field is-filled' : 'checkout-field is-empty'}>
+              {deliveryCityLine || 'City, state'}
+            </span>
+            <span className={message.delivery.postalCode ? 'checkout-field is-filled' : 'checkout-field is-empty'}>
+              {message.delivery.postalCode || 'Postal'}
+            </span>
+          </div>
+          <div className={message.delivery.phone ? 'checkout-field is-filled' : 'checkout-field is-empty'}>
+            {message.delivery.phone || 'Phone number'}
           </div>
         </div>
+        <p className="checkout-hint">
+          {message.deliveryComplete ? 'Details filled from your voice reply.' : 'Tell Mira your delivery details.'}
+        </p>
         <div className="checkout-total">
           <span>Total</span>
           <strong>{formatPrice(total)}</strong>
         </div>
-        <button type="button" onClick={onPayNow}>
+        <button type="button" onClick={onPayNow} disabled={!message.deliveryComplete}>
           <CreditCard size={17} aria-hidden="true" />
           Pay
         </button>
@@ -1179,4 +1997,177 @@ function renderMessage(message: MiraMessage, onPayNow: () => void) {
       </small>
     </div>
   );
+}
+
+type LiveCameraPreviewProps = {
+  messageId: string;
+  onController: (messageId: string, controller: CameraController | null) => void;
+};
+
+function LiveCameraPreview({ messageId, onController }: LiveCameraPreviewProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const errorRef = useRef<string | undefined>(undefined);
+  const onControllerRef = useRef(onController);
+  const [isLive, setIsLive] = useState(false);
+
+  useEffect(() => {
+    onControllerRef.current = onController;
+  }, [onController]);
+
+  useEffect(() => {
+    let cancelled = false;
+    errorRef.current = undefined;
+    setIsLive(false);
+
+    const stopStream = () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    };
+
+    const controller: CameraController = {
+      capture: () => {
+        const video = videoRef.current;
+
+        if (video && isVideoReady(video)) {
+          return {
+            imageDataUrl: captureVideoElementFrame(video),
+            source: 'camera',
+          };
+        }
+
+        return {
+          imageDataUrl: createFallbackSelfieDataUrl(),
+          source: 'fallback',
+          error: errorRef.current ?? 'Camera preview was not ready yet.',
+        };
+      },
+    };
+
+    onControllerRef.current(messageId, controller);
+
+    const startCamera = async () => {
+      try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error('Camera is not available in this browser.');
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 720 },
+            height: { ideal: 960 },
+          },
+          audio: false,
+        });
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        const video = videoRef.current;
+
+        if (!video) {
+          throw new Error('Camera preview is not ready.');
+        }
+
+        video.srcObject = stream;
+        await video.play();
+
+        if (cancelled) {
+          return;
+        }
+
+        setIsLive(true);
+      } catch (error) {
+        errorRef.current = error instanceof Error ? error.message : 'Camera unavailable.';
+        setIsLive(false);
+      }
+    };
+
+    void startCamera();
+
+    return () => {
+      cancelled = true;
+      onControllerRef.current(messageId, null);
+      stopStream();
+    };
+  }, [messageId]);
+
+  return (
+    <>
+      <video
+        ref={videoRef}
+        className={isLive ? 'camera-video is-live' : 'camera-video'}
+        autoPlay
+        muted
+        playsInline
+      />
+      {!isLive ? <div aria-hidden="true" /> : null}
+    </>
+  );
+}
+
+type DemoCaptureResult = {
+  imageDataUrl: string;
+  source: 'camera' | 'fallback';
+  error?: string;
+};
+
+function captureVideoElementFrame(video: HTMLVideoElement): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 720;
+  canvas.height = video.videoHeight || 960;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('Unable to capture camera frame.');
+  }
+
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+function isVideoReady(video: HTMLVideoElement): boolean {
+  return video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0;
+}
+
+function createFallbackSelfieDataUrl(): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 720;
+  canvas.height = 960;
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+  }
+
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, '#f6d0b5');
+  gradient.addColorStop(0.45, '#b66a46');
+  gradient.addColorStop(1, '#2e2925');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(360, 310, 140, 170, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  ctx.font = '600 42px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Camera preview', 360, 820);
+
+  return canvas.toDataURL('image/jpeg', 0.82);
+}
+
+function readProductPayload(payload: unknown) {
+  return typeof payload === 'object' && payload ? payload : {};
+}
+
+function readProductIds(payload: unknown): string[] {
+  return resolveLomaProductIdsFromPayload(payload);
 }

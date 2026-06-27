@@ -28,7 +28,8 @@ def test_product_search_returns_five_matching_items():
     )
 
     assert len(products) == 5
-    assert {product["category"] for product in products} == {"tshirts"}
+    assert [product["id"] for product in products] == ["clay", "bone", "olive", "camel", "char"]
+    assert [product["name"] for product in products[:2]] == ["Clay Pocket Tee", "Bone Boxy Tee"]
     assert all(product["price"] > 0 for product in products)
 
 
