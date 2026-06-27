@@ -233,7 +233,9 @@ def edit_image(
     mask=None,
     reference_images=None,
     model: str = "gpt-image-2",
-    size: str = "256x256",
+    # gpt-image only accepts 1024x1024 / 1024x1536 / 1536x1024 / auto — NOT 256x256 (that
+    # was a DALL·E 2 size and the edits endpoint 400s on it). `quality` is the speed/cost knob.
+    size: str = "1024x1024",
     quality: str | None = 'low',
     cassette: str | None = None,
 ) -> bytes:

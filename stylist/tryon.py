@@ -320,30 +320,30 @@ def _restore_outside(base_bytes, edited_bytes, regions) -> bytes:
 
 
 def _execute(base_photo, passes, *, fix_instruction=None) -> bytes:
-    """Run the masked-edit passes in order (chaining each output into the next).
+    """Single gpt-image-2 edit: hand the model the base photo + the garment reference image(s)
+    and ask it to dress the person — NO mask.
 
-    Synchronous and render-only. Returns the final PNG bytes. The critic is NOT involved
-    here — keeping this off the critic's path is the whole point.
-
-    After each model edit we composite the result back onto the pass input
-    (:func:`_restore_outside`) so only the garment region changes and the face/background
-    stay exactly original — this removes the gpt-image "black square over the face" failure.
+    The old approach masked a torso/head box and composited it back; gpt-image blackens the
+    masked region, which produced the black square over the body. Letting the model edit the
+    whole photo (with a strong "preserve the face/background, change only the clothing" prompt)
+    is both simpler and what actually works.
     """
-    current = load_image_bytes(base_photo)
+    refs: list = []
+    tee_desc = hat_desc = None
     for p in passes:
-        regions = _regions_for(p.categories)
-        mask = build_mask(current, regions)
-        prompt = build_p3_prompt(p.tee_desc, p.hat_desc, fix_instruction=fix_instruction)
-        edited = edit_image(
-            base_image=current,
-            prompt=prompt,
-            mask=mask,
-            reference_images=p.refs,
-            model=RENDER_MODEL,
-            cassette=p.cassette,
-        )
-        current = _restore_outside(current, edited, regions)
-    return current
+        refs.extend(p.refs)
+        tee_desc = tee_desc or p.tee_desc
+        hat_desc = hat_desc or p.hat_desc
+
+    prompt = build_p3_prompt(tee_desc, hat_desc, fix_instruction=fix_instruction)
+    return edit_image(
+        base_image=load_image_bytes(base_photo),
+        prompt=prompt,
+        mask=None,
+        reference_images=refs,
+        model=RENDER_MODEL,
+        cassette=passes[0].cassette if passes else None,
+    )
 
 
 def _intended(resolved: list) -> dict:

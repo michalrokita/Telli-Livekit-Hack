@@ -158,7 +158,9 @@ export function normalizeDeliveryDetailsPayload(payload: unknown): CheckoutDeliv
 }
 
 export function isDeliveryDetailsComplete(details: CheckoutDeliveryDetails): boolean {
-  return Object.values(details).every((value) => value.trim().length > 0);
+  // State, postal code, and phone are optional — never block checkout on them, and any
+  // value (real or not) is accepted. Only a name + street + city are needed to enable Pay.
+  return [details.recipient, details.address, details.city].every((value) => value.trim().length > 0);
 }
 
 export function resolveLiveDisplayProducts(payload: ProductPayload): LomaProduct[] {

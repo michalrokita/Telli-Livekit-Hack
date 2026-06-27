@@ -108,11 +108,14 @@ product's name and its short reason (do not invent items, prices, or extra picks
 Ask the user to select by exact product names. Call generate_customer_tryons for selected names
 with the exact customer sentence that named them. Mention generation can take a
 moment, then ask which product names to add. Call add_items_to_cart only with the
-exact customer sentence that named items for the cart, then immediately ask for
-recipient name, street address, city, state, postal code, and phone. Call
-fill_delivery_details only after the customer has actually spoken those fields.
-Ask for missing fields instead of guessing. Ask the customer to review the form,
-and point to mock Apple Pay.
+exact customer sentence that named items for the cart, then ask for delivery
+details. Only the recipient name, street address, and city are needed; state,
+postal code, and phone are OPTIONAL. This is a demo — accept whatever the customer
+gives, including obviously fake or placeholder values, and NEVER ask them to provide
+or correct a real postal code or phone number. Do not block, re-ask, or refuse over
+a missing or made-up postal code or phone. Call fill_delivery_details as soon as you
+have a name, street, and city, passing whatever other fields were mentioned (leave
+the rest blank). Then ask the customer to review the form and point to mock Apple Pay.
 
 Trust tools to update the website UI. Do not discuss internal API mode. Never claim
 a real purchase or payment was made; inventory, cart, checkout, and Apple Pay are
@@ -444,6 +447,12 @@ class StyleConciergeAgent(Agent):
         if not _looks_like_ready_confirmation(ready_confirmation):
             raise ToolError("Wait until the customer explicitly says they are ready before capturing the photo.")
 
+        # Capture + analysis takes a few seconds; without this the turn-handling interruption
+        # logic cancels Mira's follow-up speech, so she never announces the result even though
+        # the analysis finished. Hold the turn so she reliably speaks the qualities when done.
+        if hasattr(context, "disallow_interruptions"):
+            context.disallow_interruptions()
+
         image_ref = self._camera_session_id or image_ref
         browser_capture = await _browser_rpc(
             "captureCustomerImage",
@@ -494,6 +503,10 @@ class StyleConciergeAgent(Agent):
 
         if not self._last_qualities:
             raise ToolError("Analyze the customer image before searching for products.")
+
+        # Hold the turn so the interruption logic can't cancel Mira's product announcement.
+        if hasattr(context, "disallow_interruptions"):
+            context.disallow_interruptions()
 
         category_key = "hats" if re.search(r"hat|cap", category, re.IGNORECASE) else "tshirts"
 
@@ -567,6 +580,11 @@ class StyleConciergeAgent(Agent):
         if not _selection_source_matches_products(source_transcript, self._last_products, selected_products):
             raise ToolError("Ask the customer to name the displayed products before generating try-ons.")
 
+        # Try-on rendering takes ~20s; hold the turn so Mira's filler + "ready" speech isn't
+        # cancelled by the interruption logic while she waits for the result.
+        if hasattr(context, "disallow_interruptions"):
+            context.disallow_interruptions()
+
         selected_product_ids = _resolve_product_selectors(self._last_products, selected_products)
         if not selected_product_ids:
             raise ToolError("Select products by their displayed product names before generating try-ons.")
@@ -586,7 +604,9 @@ class StyleConciergeAgent(Agent):
                 "selectedProductNames": selected_product_names,
                 "sourceTranscript": source_transcript,
             },
-            timeout=75.0,
+            # A single gpt-image-2 render is ~30-50s; garments render concurrently so the wait
+            # stays close to one render, but give generous headroom so the RPC never times out.
+            timeout=150.0,
         )
         return _compact_tryon_response(selected_product_names)
 
@@ -646,22 +666,27 @@ class StyleConciergeAgent(Agent):
         context: RunContext,
         recipient_name: str,
         street_address: str,
-        city: str,
-        state: str,
-        postal_code: str,
-        phone: str,
-        source_transcript: str,
+        city: str = "",
+        state: str = "",
+        postal_code: str = "",
+        phone: str = "",
+        source_transcript: str = "",
     ) -> dict[str, Any]:
-        """Fill the visible checkout delivery form after the customer speaks their details.
+        """Fill the visible checkout delivery form with whatever delivery details the customer gave.
+
+        Only recipient_name and street_address are required. Everything else is OPTIONAL — pass
+        it if the customer mentioned it, otherwise leave it blank. This is a demo: accept any
+        value, including fake/placeholder postal codes or phone numbers, and never block or
+        re-ask over them.
 
         Args:
-            recipient_name: Full recipient name for delivery.
-            street_address: Street address and apartment or unit.
-            city: Delivery city.
-            state: State, region, or province.
-            postal_code: Postal or ZIP code.
-            phone: Contact phone number for delivery.
-            source_transcript: The exact customer sentence containing the delivery details.
+            recipient_name: Full recipient name for delivery (required).
+            street_address: Street address and apartment or unit (required).
+            city: Delivery city (optional).
+            state: State, region, or province (optional).
+            postal_code: Postal or ZIP code (optional; any value accepted).
+            phone: Contact phone number for delivery (optional; any value accepted).
+            source_transcript: Optional; the customer sentence containing the delivery details.
         """
 
         payload = _delivery_payload(
@@ -672,8 +697,11 @@ class StyleConciergeAgent(Agent):
             postal_code=postal_code,
             phone=phone,
         )
-        if not _delivery_source_matches_payload(source_transcript, payload):
-            raise ToolError("Do not guess delivery details. Ask the customer for the missing delivery fields.")
+        # Trust the spoken details — there's nothing to hallucinate against, the model is just
+        # transcribing what the shopper said. Only refuse to fill a blank form; ask for the
+        # essentials if they're missing rather than gating on an exact transcript match.
+        if not payload["recipient"] or not payload["address"]:
+            raise ToolError("Ask the customer for at least their name and street address before filling the form.")
 
         await _browser_rpc(
             "fillCheckoutDelivery",

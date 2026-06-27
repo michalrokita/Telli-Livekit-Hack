@@ -44,7 +44,6 @@ import { requestLiveKitSession } from '@/lib/livekit-session';
 import {
   cameraAttributesFromQualities,
   createEmptyDeliveryDetails,
-  deliveryDetailsMatchSpeech,
   isDeliveryDetailsComplete,
   normalizeRpcCategory,
   normalizeDeliveryDetailsPayload,
@@ -1148,26 +1147,15 @@ export function StyleConciergeChat({
   async function fillCheckoutDeliveryRpc(payload: unknown) {
     const delivery = normalizeDeliveryDetailsPayload(payload);
     const deliveryComplete = isDeliveryDetailsComplete(delivery);
-    const deliverySpeech = getRecentUserSpeech(DELIVERY_SPEECH_WINDOW_MS);
     let checkoutId = liveCheckoutIdRef.current;
 
     if (!checkoutId) {
       checkoutId = addCheckoutMessage(getSelectedDemoProducts());
     }
 
-    if (!deliveryDetailsMatchSpeech(delivery, deliverySpeech)) {
-      patchMsg(checkoutId, (message) =>
-        message.kind === 'checkout'
-          ? {
-              ...message,
-              delivery: createEmptyDeliveryDetails(),
-              deliveryComplete: false,
-            }
-          : message,
-      );
-      throw new Error('Ask the shopper for their delivery details before filling the form.');
-    }
-
+    // Trust the spoken details and fill what we have (partial is fine — Mira asks for the
+    // rest). The old transcript-match guardrail rejected almost every real fill because STT
+    // renders postal/phone digits as words and details arrive across multiple turns.
     patchMsg(checkoutId, (message) =>
       message.kind === 'checkout'
         ? {

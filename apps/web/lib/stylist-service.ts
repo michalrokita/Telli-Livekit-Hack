@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -117,7 +117,7 @@ async function withTempTryOnImages<T>(
   imageDataUrl: string,
   products: ProductRecommendation[],
   selectedProductIds: string[],
-  run: (imagePath: string, catalog: Record<string, string>) => T,
+  run: (imagePath: string, catalog: Record<string, string>) => T | Promise<T>,
 ): Promise<T | null> {
   const decoded = parseDataUrl(imageDataUrl);
   if (!decoded || decoded.buffer.length === 0) {
@@ -145,7 +145,7 @@ async function withTempTryOnImages<T>(
       }
     }
 
-    return run(imagePath, catalog);
+    return await run(imagePath, catalog);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -281,38 +281,8 @@ function defaultPythonRunner(request: StylistPythonRequest): StylistPythonResult
     };
   }
 
-  const cassette = env.STYLIST_TRYON_CASSETTE ?? (env.STYLIST_LIVE === '1' ? '' : 'tryon_hat');
-  // The brain writes the rendered PNG to a local path the browser can't read, so we
-  // inline it as a base64 data URL the UI can show directly.
-  const script = [
-    'import json, os, sys, base64',
-    'from stylist.tryon import tryon',
-    'cassette = os.environ.get("STYLIST_TRYON_CASSETTE") or None',
-    'catalog = json.loads(os.environ.get("STYLIST_TRYON_CATALOG") or "{}") or None',
-    // No per-request override → resolve option ids against the store catalog
-    // (catalog-store/store.json, with the merchant product images). Without a catalog,
-    // tryon would treat each id as a literal file path.
-    'if not catalog:',
-    '    from stylist.schemas import CatalogProduct',
-    '    with open("catalog-store/store.json") as _f:',
-    '        catalog = [CatalogProduct.from_dict(_d) for _d in json.load(_f)]',
-    'result = tryon(sys.argv[1], sys.argv[2:], catalog=catalog, cassette=cassette)',
-    'data = result.to_dict()',
-    'path = data.get("image_url")',
-    'if isinstance(path, str) and os.path.exists(path):',
-    '    with open(path, "rb") as handle:',
-    '        data["image_data_url"] = "data:image/png;base64," + base64.b64encode(handle.read()).decode("ascii")',
-    'print(json.dumps(data))',
-  ].join('\n');
-
-  if (cassette) {
-    env.STYLIST_TRYON_CASSETTE = cassette;
-  }
-  if (request.catalog && Object.keys(request.catalog).length > 0) {
-    env.STYLIST_TRYON_CATALOG = JSON.stringify(request.catalog);
-  }
-
-  const result = spawnSync(python, ['-c', script, request.imagePath, ...request.optionIds], {
+  const { args } = tryOnSpawn(request, env);
+  const result = spawnSync(python, args, {
     cwd: REPO_ROOT,
     env,
     encoding: 'utf8',
@@ -325,6 +295,69 @@ function defaultPythonRunner(request: StylistPythonRequest): StylistPythonResult
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? result.error?.message,
   };
+}
+
+// The brain writes the rendered PNG to a local path the browser can't read, so the script
+// inlines it as a base64 data URL the UI can show directly.
+const TRYON_SCRIPT = [
+  'import json, os, sys, base64',
+  'from stylist.tryon import tryon',
+  'cassette = os.environ.get("STYLIST_TRYON_CASSETTE") or None',
+  'catalog = json.loads(os.environ.get("STYLIST_TRYON_CATALOG") or "{}") or None',
+  // No per-request override → resolve option ids against the store catalog
+  // (catalog-store/store.json, with the merchant product images). Without a catalog,
+  // tryon would treat each id as a literal file path.
+  'if not catalog:',
+  '    from stylist.schemas import CatalogProduct',
+  '    with open("catalog-store/store.json") as _f:',
+  '        catalog = [CatalogProduct.from_dict(_d) for _d in json.load(_f)]',
+  'result = tryon(sys.argv[1], sys.argv[2:], catalog=catalog, cassette=cassette)',
+  'data = result.to_dict()',
+  'path = data.get("image_url")',
+  'if isinstance(path, str) and os.path.exists(path):',
+  '    with open(path, "rb") as handle:',
+  '        data["image_data_url"] = "data:image/png;base64," + base64.b64encode(handle.read()).decode("ascii")',
+  'print(json.dumps(data))',
+].join('\n');
+
+// Build the spawn args for a try-on request, mutating `env` with the cassette/catalog vars.
+function tryOnSpawn(request: StylistTryOnRequest, env: NodeJS.ProcessEnv): { args: string[] } {
+  const cassette = env.STYLIST_TRYON_CASSETTE ?? (env.STYLIST_LIVE === '1' ? '' : 'tryon_hat');
+  if (cassette) {
+    env.STYLIST_TRYON_CASSETTE = cassette;
+  }
+  if (request.catalog && Object.keys(request.catalog).length > 0) {
+    env.STYLIST_TRYON_CATALOG = JSON.stringify(request.catalog);
+  }
+  return { args: ['-c', TRYON_SCRIPT, request.imagePath, ...request.optionIds] };
+}
+
+// Async, non-blocking try-on spawn so multiple garments can render concurrently.
+function runTryOnAsync(request: StylistTryOnRequest): Promise<StylistPythonResult> {
+  const env = resolveStylistRuntimeEnv(process.env);
+  const python = env.STYLIST_PYTHON ?? (existsSync(REPO_VENV_PYTHON) ? REPO_VENV_PYTHON : 'python3');
+  const { args } = tryOnSpawn(request, env);
+
+  return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    const child = spawn(python, args, { cwd: REPO_ROOT, env });
+    const timer = setTimeout(() => child.kill(), 180_000);
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      resolve({ ok: false, stdout, stderr: error.message });
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({ ok: code === 0, stdout, stderr });
+    });
+  });
 }
 
 export type StylistAnalysis = { qualities: CustomerQualities; profile: unknown };
@@ -406,24 +439,50 @@ export async function tryCreateTryOnJobsWithStylist(input: TryOnInput): Promise<
       input.customerImageDataUrl,
       input.products,
       input.selectedProductIds,
-      (imagePath, catalog) => {
-        const result = (input.runner ?? defaultPythonRunner)({
-          kind: 'tryon',
-          imagePath,
-          optionIds: input.selectedProductIds,
-          catalog,
-        });
+      async (imagePath, catalog) => {
+        const productsById = new Map(input.products.map((product) => [product.id, product]));
 
-        if (!result.ok) {
-          return null;
-        }
+        // Render EACH selected garment on its own (one garment per gpt-image-2 edit) so every
+        // card shows that product worn by the shopper — and render them CONCURRENTLY so the
+        // total wait stays close to a single render even when several are selected.
+        const jobs = await Promise.all(
+          input.selectedProductIds.map(async (productId, index) => {
+            const product = productsById.get(productId);
+            if (!product) {
+              return null;
+            }
 
-        const parsed = parseJsonObject(result.stdout);
-        if (!parsed || typeof parsed !== 'object') {
-          return null;
-        }
+            const request: StylistTryOnRequest = { kind: 'tryon', imagePath, optionIds: [productId], catalog };
+            const result = await (input.runner ? input.runner(request) : runTryOnAsync(request));
 
-        return mapTryOnResultToJobs(input, parsed as TryOnResult);
+            // Prefer the inlined render (data URL) > a browser-readable url > the product image.
+            let imageUrl = product.tryOnImageUrl;
+            if (result.ok) {
+              const parsed = parseJsonObject(result.stdout) as TryOnResult | null;
+              const rendered =
+                parsed && isBrowserReadableUrl(parsed.image_data_url)
+                  ? (parsed.image_data_url as string)
+                  : parsed && isBrowserReadableUrl(parsed.image_url)
+                    ? (parsed.image_url as string)
+                    : null;
+              if (rendered) {
+                imageUrl = rendered;
+              }
+            }
+
+            return {
+              id: `tryon-${input.customerImageId}-${product.id}-${index + 1}`,
+              customerImageId: input.customerImageId,
+              productId: product.id,
+              productName: product.name,
+              status: 'complete' as const,
+              imageUrl,
+              generatedAt: GENERATED_AT,
+            };
+          }),
+        );
+
+        return jobs.filter((job): job is TryOnJob => job !== null);
       },
     );
   } catch {
