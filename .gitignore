@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+apps/*/node_modules/
+
+# Python
+.venv/
+apps/*/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Env files
+.env
+.env.*
+!.env.example
+apps/*/.env
+apps/*/.env.*
+!apps/*/.env.example
+
+# Build output
+.next/
+apps/*/.next/
+*.tsbuildinfo
+dist/
+build/
+coverage/
+
+# Logs and OS files
+*.log
+.DS_Store
+
+# Local agent tooling
+.superpowers/

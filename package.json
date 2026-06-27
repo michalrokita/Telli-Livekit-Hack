@@ -1,0 +1,14 @@
+{
+  "name": "telli-hack-style-concierge",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "dev": "pnpm --filter @telli/style-web dev",
+    "dev:web": "pnpm --filter @telli/style-web dev",
+    "build": "pnpm --filter @telli/style-web build",
+    "test": "pnpm test:web && pnpm test:agent",
+    "test:web": "pnpm --filter @telli/style-web test",
+    "test:agent": "cd apps/agent && uv run pytest",
+    "lint": "pnpm --filter @telli/style-web lint"
+  }
+}

@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,16..72,400;0,16..72,500;1,16..72,400&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  ::selection { background: #E7C3AC; }
+  @keyframes loma_fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes loma_panelIn { from { opacity: 0; transform: translateY(26px) scale(.97); } to { opacity: 1; transform: none; } }
+  @keyframes loma_drawerIn { from { transform: translateX(100%); } to { transform: none; } }
+  @keyframes loma_scrimIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes loma_shimmer { 100% { transform: translateX(100%); } }
+  @keyframes loma_badgeBump { 0% { transform: scale(1); } 28% { transform: scale(1.55); } 55% { transform: scale(.86); } 100% { transform: scale(1); } }
+  @keyframes loma_ripple { 0% { transform: scale(1); opacity: .45; } 100% { transform: scale(2.3); opacity: 0; } }
+  @keyframes loma_scanline { 0% { top: 4%; } 100% { top: 96%; } }
+  @keyframes loma_chipPop { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: scale(1); } }
+  @keyframes loma_spin { to { transform: rotate(360deg); } }
+  @keyframes loma_bar { 0%,100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
+  @keyframes loma_floatup { from { opacity:0; transform: translateY(6px) scale(.96); } to { opacity:1; transform:none; } }
+  .loma-scroll::-webkit-scrollbar { width: 8px; }
+  .loma-scroll::-webkit-scrollbar-thumb { background: #E4DCD0; border-radius: 8px; }
+  .loma-scroll::-webkit-scrollbar-track { background: transparent; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; background: #FAF7F2; font-family: 'Hanken Grotesk', system-ui, sans-serif; color: #211C18; -webkit-font-smoothing: antialiased; position: relative; overflow-x: hidden;">
+
+  <!-- ===================== NAV ===================== -->
+  <nav style="position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; padding: 18px 48px; background: rgba(250,247,242,.82); backdrop-filter: blur(14px); border-bottom: 1px solid #ECE6DD;">
+    <div style="display: flex; align-items: center; gap: 40px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 26px; height: 26px; border-radius: 50%; background: radial-gradient(circle at 32% 30%, #E7C3AC, #C16A45 70%);"></div>
+        <span style="font-family: 'Newsreader', serif; font-size: 23px; font-weight: 500; letter-spacing: .14em;">LOMA</span>
+      </div>
+      <div style="display: flex; gap: 26px; font-size: 14px; color: #6E665D; font-weight: 500;">
+        <span>Tees</span><span>Hats</span><span>The Edit</span><span>About</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 22px;">
+      <span style="font-size: 14px; color: #6E665D; font-weight: 500;">Search</span>
+      <span style="font-size: 14px; color: #6E665D; font-weight: 500;">Account</span>
+      <button onClick="{{ toggleCart }}" style="position: relative; border: none; background: transparent; cursor: pointer; padding: 6px; display: flex; align-items: center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#211C18" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 13H7L6 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+        <sc-if value="{{ hasCart }}" hint-placeholder-val="{{ false }}">
+          <span style="{{ badgeStyle }}">{{ cartCount }}</span>
+        </sc-if>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ===================== HERO ===================== -->
+  <section style="display: grid; grid-template-columns: 1.05fr .95fr; gap: 56px; align-items: center; max-width: 1240px; margin: 0 auto; padding: 70px 48px 60px;">
+    <div>
+      <div style="font-size: 13px; letter-spacing: .22em; text-transform: uppercase; color: #C16A45; font-weight: 600; margin-bottom: 22px;">Summer '26 · New Arrivals</div>
+      <h1 style="font-family: 'Newsreader', serif; font-size: 62px; line-height: 1.04; font-weight: 500; letter-spacing: -.01em; margin: 0 0 22px; text-wrap: balance;">Basics, <em style="font-style: italic; color: #C16A45;">considered.</em><br>Made to be lived in.</h1>
+      <p style="font-size: 17px; line-height: 1.6; color: #6E665D; max-width: 440px; margin: 0 0 32px;">Heavyweight cotton tees and clean-lined caps in a warm, wearable palette. Or — let our stylist find your fit.</p>
+      <div style="display: flex; gap: 14px; align-items: center;">
+        <button style="border: none; background: #211C18; color: #FAF7F2; font-size: 15px; font-weight: 600; padding: 14px 26px; border-radius: 999px; cursor: pointer; font-family: inherit;">Shop the edit</button>
+        <button onClick="{{ openChat }}" style="border: 1px solid #D9CFC2; background: transparent; color: #211C18; font-size: 15px; font-weight: 600; padding: 14px 22px; border-radius: 999px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 9px;">
+          <span style="width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 32% 30%, #E7C3AC, #C16A45 70%);"></span>
+          Style me with Mira
+        </button>
+      </div>
+    </div>
+    <div style="position: relative; aspect-ratio: 4/5; border-radius: 8px; overflow: hidden; background: linear-gradient(150deg, #EDE3D6, #E2D2C2); display: flex; align-items: flex-end; justify-content: flex-start;">
+      <div style="position: absolute; inset: 0; background-image: repeating-linear-gradient(135deg, rgba(0,0,0,.025) 0 14px, transparent 14px 28px);"></div>
+      <span style="position: relative; margin: 18px; font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: .08em; color: #9A8C7C; background: rgba(255,255,255,.7); padding: 5px 9px; border-radius: 4px;">campaign image — model in clay tee</span>
+    </div>
+  </section>
+
+  <!-- ===================== PRODUCT GRID ===================== -->
+  <section style="max-width: 1240px; margin: 0 auto; padding: 20px 48px 120px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px;">
+      <h2 style="font-family: 'Newsreader', serif; font-size: 30px; font-weight: 500; margin: 0;">The collection</h2>
+      <span style="font-size: 13px; color: #9A8C7C; letter-spacing: .04em;">5 pieces</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(218px, 1fr)); gap: 26px;">
+      <sc-for list="{{ products }}" as="p" hint-placeholder-count="5">
+        <div style="cursor: pointer;">
+          <div style="{{ p.tileStyle }}">
+            <div style="position: absolute; inset: 0; background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.06) 0 12px, transparent 12px 24px);"></div>
+            <span style="{{ p.tagStyle }}">{{ p.kind }}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 13px;">
+            <span style="font-size: 15px; font-weight: 600;">{{ p.name }}</span>
+            <span style="font-size: 15px; color: #6E665D;">{{ p.priceLabel }}</span>
+          </div>
+          <div style="font-size: 13px; color: #9A8C7C; margin-top: 3px;">{{ p.sub }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ===================== CART SCRIM + DRAWER ===================== -->
+  <sc-if value="{{ cartOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeCart }}" style="position: fixed; inset: 0; background: rgba(33,28,24,.32); backdrop-filter: blur(2px); z-index: 50; animation: loma_scrimIn .25s ease;"></div>
+    <aside style="position: fixed; top: 0; right: 0; bottom: 0; width: 412px; background: #FFFDFA; z-index: 51; box-shadow: -24px 0 60px rgba(33,28,24,.18); animation: loma_drawerIn .34s cubic-bezier(.22,1,.36,1); display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 22px 26px; border-bottom: 1px solid #ECE6DD;">
+        <span style="font-family: 'Newsreader', serif; font-size: 22px; font-weight: 500;">Your bag</span>
+        <button onClick="{{ closeCart }}" style="border: none; background: transparent; cursor: pointer; font-size: 22px; color: #9A8C7C; line-height: 1;">×</button>
+      </div>
+      <div class="loma-scroll" style="flex: 1; overflow-y: auto; padding: 12px 26px;">
+        <sc-if value="{{ cartEmpty }}" hint-placeholder-val="{{ true }}">
+          <div style="text-align: center; padding: 80px 20px; color: #9A8C7C;">
+            <div style="width: 52px; height: 52px; margin: 0 auto 16px; border-radius: 50%; background: #F3ECE2; display: flex; align-items: center; justify-content: center;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#C8B9A6" stroke-width="1.6"><path d="M6 7h12l-1 13H7L6 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+            </div>
+            <div style="font-size: 15px; color: #6E665D;">Your bag is empty</div>
+            <div style="font-size: 13px; margin-top: 6px;">Ask Mira to style you →</div>
+          </div>
+        </sc-if>
+        <sc-for list="{{ cartItems }}" as="ci" hint-placeholder-count="0">
+          <div style="display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid #F1EAE0; animation: loma_floatup .3s ease;">
+            <div style="{{ ci.thumbStyle }}">
+              <sc-if value="{{ ci.isTryOn }}" hint-placeholder-val="{{ false }}">
+                <span style="position: absolute; top: 5px; left: 5px; font-family: ui-monospace, monospace; font-size: 8px; letter-spacing: .04em; background: rgba(33,28,24,.78); color: #fff; padding: 2px 5px; border-radius: 4px;">AI TRY-ON</span>
+              </sc-if>
+            </div>
+            <div style="flex: 1;">
+              <div style="display: flex; justify-content: space-between;">
+                <span style="font-size: 14px; font-weight: 600;">{{ ci.name }}</span>
+                <span style="font-size: 14px; color: #6E665D;">{{ ci.priceLabel }}</span>
+              </div>
+              <div style="font-size: 12px; color: #9A8C7C; margin-top: 3px;">{{ ci.sub }}</div>
+              <div style="display: inline-flex; align-items: center; gap: 12px; margin-top: 10px; border: 1px solid #E4DCD0; border-radius: 999px; padding: 3px 10px; font-size: 13px; color: #6E665D;">
+                <span>−</span><span style="font-weight: 600; color: #211C18;">1</span><span>+</span>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ hasCart }}" hint-placeholder-val="{{ false }}">
+        <div style="padding: 20px 26px 24px; border-top: 1px solid #ECE6DD;">
+          <div style="display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 4px;"><span style="color: #6E665D;">Subtotal</span><span style="font-weight: 600;">{{ subtotalLabel }}</span></div>
+          <div style="font-size: 12px; color: #9A8C7C; margin-bottom: 16px;">Shipping & taxes calculated at checkout</div>
+          <button style="width: 100%; border: none; background: #211C18; color: #FAF7F2; font-size: 15px; font-weight: 600; padding: 15px; border-radius: 999px; cursor: pointer; font-family: inherit;">Checkout</button>
+        </div>
+      </sc-if>
+    </aside>
+  </sc-if>
+
+  <!-- ===================== CHAT LAUNCHER ===================== -->
+  <sc-if value="{{ launcherVisible }}" hint-placeholder-val="{{ true }}">
+    <button onClick="{{ openChat }}" style="position: fixed; bottom: 26px; right: 26px; z-index: 40; width: 66px; height: 66px; border-radius: 50%; border: none; cursor: pointer; background: radial-gradient(circle at 34% 30%, #F0C3A6, #C16A45 72%); box-shadow: 0 14px 36px rgba(193,106,69,.42), inset 0 1px 2px rgba(255,255,255,.5); display: flex; align-items: center; justify-content: center;">
+      <span style="position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid rgba(193,106,69,.5); animation: loma_ripple 2.6s ease-out infinite;"></span>
+      <span style="position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid rgba(193,106,69,.5); animation: loma_ripple 2.6s ease-out infinite 1.3s;"></span>
+      <span style="display: flex; align-items: flex-end; gap: 3px; height: 22px;">
+        <span style="width: 3px; height: 100%; background: rgba(255,255,255,.92); border-radius: 3px; transform-origin: bottom; animation: loma_bar 1s ease-in-out infinite;"></span>
+        <span style="width: 3px; height: 100%; background: rgba(255,255,255,.92); border-radius: 3px; transform-origin: bottom; animation: loma_bar 1s ease-in-out infinite .18s;"></span>
+        <span style="width: 3px; height: 100%; background: rgba(255,255,255,.92); border-radius: 3px; transform-origin: bottom; animation: loma_bar 1s ease-in-out infinite .36s;"></span>
+        <span style="width: 3px; height: 100%; background: rgba(255,255,255,.92); border-radius: 3px; transform-origin: bottom; animation: loma_bar 1s ease-in-out infinite .54s;"></span>
+      </span>
+    </button>
+  </sc-if>
+
+  <!-- ===================== CHAT PANEL ===================== -->
+  <sc-if value="{{ chatOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; bottom: 26px; right: 26px; z-index: 60; width: 424px; height: 680px; max-height: calc(100vh - 52px); background: #FFFDFA; border-radius: 22px; box-shadow: 0 30px 80px rgba(33,28,24,.28), 0 0 0 1px rgba(33,28,24,.04); display: flex; flex-direction: column; overflow: hidden; animation: loma_panelIn .42s cubic-bezier(.22,1,.36,1);">
+
+      <!-- header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #F1EAE0; background: linear-gradient(180deg, #FFFDFA, #FCF8F2);">
+        <div style="display: flex; align-items: center; gap: 11px;">
+          <div style="width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 34% 30%, #F0C3A6, #C16A45 72%); box-shadow: inset 0 1px 2px rgba(255,255,255,.5);"></div>
+          <div>
+            <div style="font-size: 15px; font-weight: 700; line-height: 1.1;">Mira</div>
+            <div style="{{ statusPillStyle }}">{{ statusLabel }}</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <sc-if value="{{ demoStarted }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ replayDemo }}" title="Replay" style="border: none; background: transparent; cursor: pointer; padding: 7px; border-radius: 8px; color: #9A8C7C; display: flex;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/></svg>
+            </button>
+          </sc-if>
+          <button onClick="{{ closeChat }}" style="border: none; background: transparent; cursor: pointer; padding: 7px; border-radius: 8px; color: #9A8C7C; font-size: 20px; line-height: 1;">×</button>
+        </div>
+      </div>
+
+      <!-- visualizer -->
+      <div style="{{ vizWrapStyle }}">
+        <canvas ref="{{ orbRef }}" style="width: 100%; height: 100%; display: block;"></canvas>
+        <sc-if value="{{ showVizLabel }}" hint-placeholder-val="{{ true }}">
+          <div style="position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #B0917C; font-weight: 600;">{{ statusLabel }}</div>
+        </sc-if>
+      </div>
+
+      <!-- INTRO (pre-demo) -->
+      <sc-if value="{{ showIntro }}" hint-placeholder-val="{{ true }}">
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6px 36px 34px;">
+          <h3 style="font-family: 'Newsreader', serif; font-size: 25px; font-weight: 500; margin: 0 0 10px; line-height: 1.2;">Hey — I'm Mira.</h3>
+          <p style="font-size: 15px; line-height: 1.55; color: #6E665D; margin: 0 0 26px;">I'll take a quick look at you and style a fit in about a minute. Hands-free — just talk.</p>
+          <button onClick="{{ playDemo }}" style="display: inline-flex; align-items: center; gap: 10px; border: none; background: #211C18; color: #FAF7F2; font-size: 15px; font-weight: 600; padding: 14px 26px; border-radius: 999px; cursor: pointer; font-family: inherit; box-shadow: 0 10px 26px rgba(33,28,24,.22);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#FAF7F2"><path d="M7 5v14l12-7z"/></svg>
+            Play the demo
+          </button>
+          <div style="margin-top: 18px; font-size: 12px; color: #B5A795; letter-spacing: .03em;">Voice-first · camera &amp; mic simulated</div>
+        </div>
+      </sc-if>
+
+      <!-- ACTIVE CONVERSATION -->
+      <sc-if value="{{ demoStarted }}" hint-placeholder-val="{{ false }}">
+        <div ref="{{ scrollRef }}" class="loma-scroll" style="flex: 1; overflow-y: auto; padding: 16px 16px 20px; display: flex; flex-direction: column; gap: 14px;">
+          <sc-for list="{{ messages }}" as="m" hint-placeholder-count="0">
+            <div style="{{ m.wrapStyle }}">
+
+              <!-- text bubble -->
+              <sc-if value="{{ m.isText }}" hint-placeholder-val="{{ false }}">
+                <div style="{{ m.bubbleStyle }}">{{ m.text }}</div>
+              </sc-if>
+
+              <!-- camera / analyzing card -->
+              <sc-if value="{{ m.isCamera }}" hint-placeholder-val="{{ false }}">
+                <div style="width: 100%; background: #fff; border: 1px solid #F1EAE0; border-radius: 16px; overflow: hidden; box-shadow: 0 6px 18px rgba(33,28,24,.06); animation: loma_floatup .35s ease;">
+                  <div style="position: relative; aspect-ratio: 4/3; background: linear-gradient(160deg, #4A4038, #2C2420); overflow: hidden;">
+                    <div style="position: absolute; inset: 0; background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.03) 0 16px, transparent 16px 32px);"></div>
+                    <div style="position: absolute; left: 50%; top: 46%; transform: translate(-50%,-50%); width: 96px; height: 116px; border-radius: 48px 48px 44px 44px; background: radial-gradient(circle at 50% 38%, rgba(231,195,172,.6), rgba(193,106,69,.28) 70%); filter: blur(1px);"></div>
+                    <!-- framing corners -->
+                    <div style="position: absolute; inset: 16px; border: 1.5px solid rgba(255,255,255,.32); border-radius: 12px;"></div>
+                    <!-- preview controls -->
+                    <sc-if value="{{ m.isPreview }}" hint-placeholder-val="{{ true }}">
+                      <div style="position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,.4); padding: 4px 9px; border-radius: 999px;">
+                        <span style="width: 7px; height: 7px; border-radius: 50%; background: #FF5A4D; animation: loma_bar 1.2s ease-in-out infinite;"></span>
+                        <span style="font-size: 11px; color: #fff; font-weight: 600; letter-spacing: .04em;">LIVE</span>
+                      </div>
+                      <div style="position: absolute; bottom: 14px; left: 0; right: 0; display: flex; justify-content: center;">
+                        <span style="width: 50px; height: 50px; border-radius: 50%; border: 3px solid #fff; background: rgba(255,255,255,.25); box-shadow: 0 0 0 4px rgba(255,255,255,.18);"></span>
+                      </div>
+                    </sc-if>
+                    <!-- analyzing scan -->
+                    <sc-if value="{{ m.isAnalyzing }}" hint-placeholder-val="{{ false }}">
+                      <div style="position: absolute; left: 8%; right: 8%; height: 2px; background: linear-gradient(90deg, transparent, #F0C3A6, transparent); box-shadow: 0 0 14px 3px rgba(240,195,166,.7); animation: loma_scanline 1.6s ease-in-out infinite alternate;"></div>
+                      <div style="position: absolute; inset: 16px; border: 1.5px solid rgba(240,195,166,.55); border-radius: 12px; box-shadow: 0 0 22px rgba(240,195,166,.25) inset;"></div>
+                    </sc-if>
+                    <!-- captured check -->
+                    <sc-if value="{{ m.isCaptured }}" hint-placeholder-val="{{ false }}">
+                      <div style="position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; border-radius: 50%; background: #6E9E7E; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px;">✓</div>
+                    </sc-if>
+                  </div>
+                  <!-- attribute readout -->
+                  <sc-if value="{{ m.showAttrs }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding: 13px 15px; display: flex; flex-direction: column; gap: 9px;">
+                      <div style="font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #B0917C; font-weight: 600;">Reading your features</div>
+                      <sc-for list="{{ m.attrs }}" as="a" hint-placeholder-count="0">
+                        <div style="{{ a.rowStyle }}">
+                          <span style="font-size: 13px; color: #8A8178;">{{ a.label }}</span>
+                          <span style="{{ a.valStyle }}">{{ a.value }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-if>
+
+              <!-- profile card -->
+              <sc-if value="{{ m.isProfile }}" hint-placeholder-val="{{ false }}">
+                <div style="width: 100%; background: linear-gradient(165deg, #FFFCF8, #FBF2E9); border: 1px solid #F0E2D4; border-radius: 16px; padding: 16px; box-shadow: 0 6px 18px rgba(193,106,69,.08); animation: loma_floatup .35s ease;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <span style="width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 34% 30%, #F0C3A6, #C16A45 72%);"></span>
+                    <span style="font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #C16A45; font-weight: 700;">Your style profile</span>
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <sc-for list="{{ m.chips }}" as="c" hint-placeholder-count="0">
+                      <span style="display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #EFE1D2; border-radius: 999px; padding: 7px 13px; font-size: 13px; font-weight: 500; animation: loma_chipPop .3s ease backwards;"><span style="color: #9A8C7C; font-size: 12px;">{{ c.label }}</span><span style="font-weight: 600; color: #211C18;">{{ c.value }}</span></span>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- recommendations carousel -->
+              <sc-if value="{{ m.isRecs }}" hint-placeholder-val="{{ false }}">
+                <div style="width: 100%; animation: loma_floatup .35s ease;">
+                  <div class="loma-scroll" style="display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x mandatory;">
+                    <sc-for list="{{ m.cards }}" as="r" hint-placeholder-count="0">
+                      <div style="{{ r.cardStyle }}">
+                        <div style="{{ r.tileStyle }}">
+                          <sc-if value="{{ r.selected }}" hint-placeholder-val="{{ false }}">
+                            <span style="position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: #C16A45; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; box-shadow: 0 2px 6px rgba(193,106,69,.4);">♥</span>
+                          </sc-if>
+                        </div>
+                        <div style="padding: 11px 12px 13px;">
+                          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                            <span style="font-size: 14px; font-weight: 600;">{{ r.name }}</span>
+                            <span style="font-size: 13px; color: #6E665D;">{{ r.priceLabel }}</span>
+                          </div>
+                          <div style="font-size: 12px; line-height: 1.45; color: #9A8C7C; margin-top: 6px;">{{ r.why }}</div>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="font-size: 11px; color: #B5A795; text-align: center; letter-spacing: .04em;">← swipe · or tell Mira which you like</div>
+                </div>
+              </sc-if>
+
+              <!-- generating / try-on cards -->
+              <sc-if value="{{ m.isTryon }}" hint-placeholder-val="{{ false }}">
+                <div style="width: 100%; display: flex; gap: 12px; animation: loma_floatup .35s ease;">
+                  <sc-for list="{{ m.items }}" as="t" hint-placeholder-count="2">
+                    <div style="flex: 1; background: #fff; border: 1px solid #F1EAE0; border-radius: 16px; overflow: hidden; box-shadow: 0 6px 18px rgba(33,28,24,.06);">
+                      <div style="{{ t.tileStyle }}">
+                        <!-- generating overlay -->
+                        <sc-if value="{{ t.isGen }}" hint-placeholder-val="{{ true }}">
+                          <div style="position: absolute; inset: 0; overflow: hidden;">
+                            <div style="position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%); transform: translateX(-100%); animation: loma_shimmer 1.5s ease-in-out infinite;"></div>
+                          </div>
+                          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;">
+                            <span style="width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid rgba(193,106,69,.25); border-top-color: #C16A45; animation: loma_spin .8s linear infinite;"></span>
+                            <span style="font-size: 11px; color: #B0917C; font-weight: 600; letter-spacing: .06em;">{{ t.genLabel }}</span>
+                          </div>
+                        </sc-if>
+                        <!-- done -->
+                        <sc-if value="{{ t.isDone }}" hint-placeholder-val="{{ false }}">
+                          <span style="position: absolute; top: 8px; left: 8px; font-family: ui-monospace, monospace; font-size: 9px; letter-spacing: .04em; background: rgba(33,28,24,.78); color: #fff; padding: 3px 7px; border-radius: 5px;">YOU · AI TRY-ON</span>
+                          <div style="position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%); width: 70px; height: 86px; border-radius: 36px 36px 30px 30px; background: radial-gradient(circle at 50% 36%, rgba(255,255,255,.45), rgba(0,0,0,.06) 72%);"></div>
+                        </sc-if>
+                      </div>
+                      <sc-if value="{{ t.isDone }}" hint-placeholder-val="{{ false }}">
+                        <div style="padding: 10px 11px 12px; animation: loma_fadeUp .4s ease;">
+                          <div style="font-size: 13px; font-weight: 600; line-height: 1.2;">{{ t.name }}</div>
+                          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+                            <span style="font-size: 13px; color: #6E665D;">{{ t.priceLabel }}</span>
+                            <button onClick="{{ t.add }}" style="{{ t.btnStyle }}">{{ t.btnLabel }}</button>
+                          </div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <!-- checkout card -->
+              <sc-if value="{{ m.isCheckout }}" hint-placeholder-val="{{ false }}">
+                <div style="width: 100%; background: #fff; border: 1px solid #F1EAE0; border-radius: 16px; padding: 16px; box-shadow: 0 6px 18px rgba(33,28,24,.06); animation: loma_floatup .35s ease;">
+                  <div style="font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #B0917C; font-weight: 700; margin-bottom: 13px;">Delivery</div>
+                  <div style="display: flex; flex-direction: column; gap: 9px;">
+                    <div style="border: 1px solid #ECE3D7; border-radius: 10px; padding: 11px 13px; font-size: 14px; color: #211C18;">Jordan Avery</div>
+                    <div style="border: 1px solid #ECE3D7; border-radius: 10px; padding: 11px 13px; font-size: 14px; color: #211C18;">218 Mercer St, Apt 4</div>
+                    <div style="display: flex; gap: 9px;">
+                      <div style="flex: 1; border: 1px solid #ECE3D7; border-radius: 10px; padding: 11px 13px; font-size: 14px;">New York, NY</div>
+                      <div style="width: 96px; border: 1px solid #ECE3D7; border-radius: 10px; padding: 11px 13px; font-size: 14px;">10012</div>
+                    </div>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 14px; margin: 16px 2px 13px;"><span style="color: #6E665D;">Total</span><span style="font-weight: 700;">{{ subtotalLabel }}</span></div>
+                  <button onClick="{{ payNow }}" style="width: 100%; border: none; background: #111; color: #fff; font-size: 16px; font-weight: 600; padding: 14px; border-radius: 12px; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <svg width="16" height="18" viewBox="0 0 16 20" fill="#fff"><path d="M11 3.2c.6-.7 1-1.7.9-2.7-.9.04-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .08 2-.5 2.5-1.2zM12.9 10.6c-.02-2 1.6-2.9 1.7-3-.9-1.4-2.4-1.5-2.9-1.6-1.2-.1-2.4.7-3 .7-.6 0-1.6-.7-2.6-.7-1.3.02-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2 2.4 2 1 0 1.3-.6 2.5-.6 1.2 0 1.5.6 2.6.6 1 0 1.7-1 2.4-2 .5-.7.7-1.1 1.1-1.9-2.9-1.1-2.4-4.9-1.5-3.5z"/></svg>
+                    Pay
+                  </button>
+                </div>
+              </sc-if>
+
+              <!-- success card -->
+              <sc-if value="{{ m.isSuccess }}" hint-placeholder-val="{{ false }}">
+                <div style="width: 100%; background: linear-gradient(165deg, #FFFCF8, #F4F0E6); border: 1px solid #EAE3D5; border-radius: 16px; padding: 26px 18px; text-align: center; box-shadow: 0 6px 18px rgba(33,28,24,.06); animation: loma_floatup .35s ease;">
+                  <div style="width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 50%; background: #6E9E7E; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 26px; box-shadow: 0 8px 20px rgba(110,158,126,.35);">✓</div>
+                  <div style="font-family: 'Newsreader', serif; font-size: 22px; font-weight: 500; margin-bottom: 6px;">Order placed</div>
+                  <div style="font-size: 14px; color: #6E665D; line-height: 1.5;">2 pieces on the way. I had a blast styling you — come back anytime.</div>
+                  <div style="margin-top: 16px; font-size: 12px; letter-spacing: .08em; color: #B5A795;">ORDER #LM-4471 · ARRIVES THU</div>
+                </div>
+              </sc-if>
+
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- footer (secondary text input) -->
+        <div style="padding: 11px 14px 14px; border-top: 1px solid #F1EAE0; display: flex; align-items: center; gap: 10px; background: #FFFDFA;">
+          <div style="flex: 1; border: 1px solid #ECE3D7; border-radius: 999px; padding: 10px 16px; font-size: 14px; color: #B5A795;">Type a message…</div>
+          <div style="{{ micStyle }}">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  orbRef = React.createRef();
+  scrollRef = React.createRef();
+  amp = 0.16;
+  _raf = null;
+  _timers = [];
+  _running = false;
+
+  state = {
+    cartOpen: false,
+    cartItems: [],
+    badgeBump: false,
+    chatOpen: false,
+    demoStarted: false,
+    voiceState: 'idle',
+    messages: [],
+  };
+
+  // ---- product catalog ----
+  catalog = [
+    { id: 'clay',  name: 'Clay Pocket Tee',     price: 48, kind: 'TEE',  color: '#C16A45', sub: 'Heavyweight cotton' },
+    { id: 'bone',  name: 'Bone Boxy Tee',       price: 52, kind: 'TEE',  color: '#E7DFD2', dark: true, sub: 'Relaxed crop' },
+    { id: 'olive', name: 'Olive Heavyweight',   price: 54, kind: 'TEE',  color: '#6E7257', sub: '240gsm jersey' },
+    { id: 'camel', name: 'Camel Cord Cap',      price: 42, kind: 'CAP',  color: '#C9A36A', dark: true, sub: 'Corduroy 6-panel' },
+    { id: 'char',  name: 'Charcoal 5-Panel',    price: 44, kind: 'CAP',  color: '#2E2C29', sub: 'Brushed twill' },
+  ];
+
+  byId(id) { return this.catalog.find(p => p.id === id); }
+
+  // ---- lifecycle ----
+  componentDidMount() { this.runOrb(); }
+  componentDidUpdate() {
+    const el = this.scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+  componentWillUnmount() {
+    cancelAnimationFrame(this._raf);
+    this._timers.forEach(clearTimeout);
+  }
+
+  sleep(ms) { return new Promise(res => { const t = setTimeout(res, ms); this._timers.push(t); }); }
+
+  // ---- orb animation ----
+  runOrb = () => {
+    const c = this.orbRef.current;
+    if (c) {
+      const ctx = c.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const W = c.clientWidth, H = c.clientHeight;
+      if (W > 0 && (c.width !== Math.round(W * dpr))) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+      if (W > 0) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        const t = performance.now() / 1000;
+        const vs = this.state.voiceState;
+        let target = 0.16 + Math.sin(t * 1.5) * 0.04;
+        if (vs === 'listening') target = 0.34 + Math.abs(Math.sin(t * 5)) * 0.42 * (0.6 + 0.4 * Math.sin(t * 12.7));
+        else if (vs === 'speaking') target = 0.3 + Math.abs(Math.sin(t * 7.3)) * 0.45;
+        else if (vs === 'thinking') target = 0.24 + Math.sin(t * 2.4) * 0.05;
+        else if (vs === 'connecting') target = 0.15 + Math.sin(t * 2) * 0.03;
+        this.amp += (target - this.amp) * 0.16;
+        const cx = W / 2, cy = H / 2;
+        const base = Math.min(W, H) * 0.21;
+
+        const glow = ctx.createRadialGradient(cx, cy, base * 0.3, cx, cy, base * 2.6);
+        glow.addColorStop(0, 'rgba(224,160,126,' + (0.3 + this.amp * 0.4) + ')');
+        glow.addColorStop(1, 'rgba(224,160,126,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(cx, cy, base * 2.6, 0, 7); ctx.fill();
+
+        const N = 52;
+        for (let i = 0; i < N; i++) {
+          const a = (i / N) * Math.PI * 2;
+          let len;
+          if (vs === 'thinking') len = base * 0.5 * (0.45 + 0.55 * Math.max(0, Math.sin(t * 3 - i * 0.5)));
+          else len = base * 0.6 * (0.35 + this.amp * 1.25) * (0.55 + 0.45 * Math.sin(t * 4 + i * 0.55));
+          const r0 = base * 1.05, r1 = r0 + Math.max(1.5, len);
+          ctx.strokeStyle = 'rgba(193,106,69,' + (0.45 + this.amp * 0.4) + ')';
+          ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+          ctx.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+          ctx.stroke();
+        }
+
+        const g = ctx.createRadialGradient(cx - base * 0.32, cy - base * 0.32, base * 0.1, cx, cy, base);
+        g.addColorStop(0, '#F2C8AC'); g.addColorStop(0.5, '#D98B63'); g.addColorStop(1, '#B85F3C');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(cx, cy, base * (0.92 + this.amp * 0.12), 0, 7); ctx.fill();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.28)';
+        ctx.beginPath(); ctx.ellipse(cx - base * 0.26, cy - base * 0.3, base * 0.36, base * 0.22, -0.6, 0, 7); ctx.fill();
+      }
+    }
+    this._raf = requestAnimationFrame(this.runOrb);
+  };
+
+  // ---- message helpers ----
+  addMsg(msg) {
+    const id = 'm' + Math.random().toString(36).slice(2);
+    const full = { id, ...msg };
+    this.setState(s => ({ messages: [...s.messages, full] }));
+    return id;
+  }
+  patchMsg(id, patch) {
+    this.setState(s => ({ messages: s.messages.map(m => m.id === id ? { ...m, ...patch } : m) }));
+  }
+  setVoice(v) { this.setState({ voiceState: v }); }
+
+  // ---- the scripted flow ----
+  playDemo = async () => {
+    if (this._running) return;
+    this._running = true;
+    this.setState({ demoStarted: true, messages: [] });
+
+    // 1 — greeting
+    this.setVoice('connecting'); await this.sleep(700);
+    this.setVoice('speaking');
+    this.addMsg({ kind: 'text', role: 'agent', text: "Hi! I'm Mira, your LOMA stylist. What are we shopping for today?" });
+    await this.sleep(2000);
+
+    // 2 — user replies
+    this.setVoice('listening');
+    await this.sleep(900);
+    this.addMsg({ kind: 'text', role: 'user', text: "Something easy for summer — a tee and a hat." });
+    await this.sleep(1100);
+
+    // 3 — ask for selfie
+    this.setVoice('speaking');
+    this.addMsg({ kind: 'text', role: 'agent', text: "Love that. Mind if I take a quick look? Smile for the camera 📸" });
+    await this.sleep(1700);
+
+    // 4 — camera preview
+    const camId = this.addMsg({ kind: 'camera', status: 'preview', attrs: [
+      { label: 'Hair', value: 'Deep brown' },
+      { label: 'Skin tone', value: 'Olive' },
+      { label: 'Undertone', value: 'Warm / golden' },
+      { label: 'Contrast', value: 'Soft' },
+    ] });
+    this.setVoice('idle');
+    await this.sleep(2000);
+
+    // capture
+    this.patchMsg(camId, { status: 'captured' });
+    await this.sleep(900);
+
+    // 5 — analyzing
+    this.setVoice('thinking');
+    this.patchMsg(camId, { status: 'analyzing', showAttrs: true });
+    const reveal = [0, 1, 2, 3];
+    for (const i of reveal) {
+      await this.sleep(680);
+      this.setState(s => ({ messages: s.messages.map(m => {
+        if (m.id !== camId) return m;
+        const attrs = m.attrs.map((a, idx) => idx === i ? { ...a, on: true } : a);
+        return { ...m, attrs };
+      }) }));
+    }
+    await this.sleep(700);
+
+    // 6 — analysis result
+    this.setVoice('speaking');
+    this.addMsg({ kind: 'text', role: 'agent', text: "Gorgeous — warm golden undertones and soft contrast. Earthy, muted tones are going to love you." });
+    await this.sleep(2100);
+    this.addMsg({ kind: 'profile', chips: [
+      { label: '', value: 'Warm undertone' },
+      { label: '', value: 'Olive skin' },
+      { label: '', value: 'Deep brown hair' },
+      { label: '', value: 'Soft contrast' },
+      { label: '', value: 'Relaxed fit' },
+    ] });
+    await this.sleep(1500);
+
+    // 7 — recommendations
+    this.setVoice('speaking');
+    this.addMsg({ kind: 'text', role: 'agent', text: "Here are five picks I'd put you in:" });
+    await this.sleep(1200);
+    const recs = [
+      { ...this.byId('clay'),  why: 'Clay echoes your golden undertone.' },
+      { ...this.byId('camel'), why: 'Camel frames your face, never competes.' },
+      { ...this.byId('olive'), why: 'Muted olive suits your soft contrast.' },
+      { ...this.byId('bone'),  why: 'A clean neutral base for any fit.' },
+      { ...this.byId('char'),  why: 'Adds quiet structure to the look.' },
+    ];
+    const recId = this.addMsg({ kind: 'recs', cards: recs.map(r => ({ ...r, selected: false })) });
+    await this.sleep(2000);
+
+    // 8 — like prompt
+    this.setVoice('listening');
+    await this.sleep(700);
+    this.addMsg({ kind: 'text', role: 'user', text: "Ooh — the clay tee and the camel cap." });
+    await this.sleep(900);
+    this.setState(s => ({ messages: s.messages.map(m => m.id === recId
+      ? { ...m, cards: m.cards.map(c => ({ ...c, selected: c.id === 'clay' || c.id === 'camel' })) } : m) }));
+    await this.sleep(900);
+
+    // 9 — generating try-on
+    this.setVoice('speaking');
+    this.addMsg({ kind: 'text', role: 'agent', text: "Amazing taste. Let me show you wearing them — one sec ✨" });
+    await this.sleep(1500);
+    this.setVoice('thinking');
+    const tryId = this.addMsg({ kind: 'tryon', items: [
+      { ...this.byId('clay'),  status: 'gen', genLabel: 'Styling…' },
+      { ...this.byId('camel'), status: 'gen', genLabel: 'Styling…' },
+    ] });
+    await this.sleep(2600);
+
+    // 10 — reveal one, then the other
+    this.setState(s => ({ messages: s.messages.map(m => m.id !== tryId ? m
+      : { ...m, items: m.items.map((it, i) => i === 0 ? { ...it, status: 'done' } : it) }) }));
+    await this.sleep(1100);
+    this.setState(s => ({ messages: s.messages.map(m => m.id !== tryId ? m
+      : { ...m, items: m.items.map(it => ({ ...it, status: 'done' })) }) }));
+    this.setVoice('speaking');
+    await this.sleep(500);
+    this.addMsg({ kind: 'text', role: 'agent', text: "That clay-and-camel combo is so you. Want me to bag them?" });
+    await this.sleep(1900);
+
+    // 11 — add to cart
+    this.setVoice('listening');
+    await this.sleep(700);
+    this.addMsg({ kind: 'text', role: 'user', text: "Yes — add both." });
+    await this.sleep(700);
+    this.addToCart('clay', true);
+    await this.sleep(550);
+    this.addToCart('camel', true);
+    await this.sleep(500);
+    this.setState(s => ({ messages: s.messages.map(m => m.id !== tryId ? m
+      : { ...m, items: m.items.map(it => ({ ...it, added: true })) }) }));
+    this.setVoice('speaking');
+    this.addMsg({ kind: 'text', role: 'agent', text: "Done — both in your bag ✓ Ready to check out?" });
+    await this.sleep(1900);
+
+    // 12 — checkout
+    this.setVoice('listening');
+    await this.sleep(700);
+    this.addMsg({ kind: 'text', role: 'user', text: "Let's do it." });
+    await this.sleep(800);
+    this.setVoice('speaking');
+    this.addMsg({ kind: 'checkout' });
+    this.setVoice('idle');
+    this._running = false;
+  };
+
+  replayDemo = () => { this._running = false; this.playDemo(); };
+
+  payNow = () => {
+    this.addMsg({ kind: 'success' });
+    this.setVoice('speaking');
+    this.sleep(50).then(() => this.setVoice('idle'));
+  };
+
+  addToCart(id, isTryOn) {
+    const p = this.byId(id);
+    if (!p) return;
+    this.setState(s => ({
+      cartItems: [...s.cartItems, { ...p, isTryOn: !!isTryOn }],
+      badgeBump: true,
+    }));
+    const t = setTimeout(() => this.setState({ badgeBump: false }), 650);
+    this._timers.push(t);
+  }
+
+  // ---- UI handlers ----
+  openChat = () => this.setState({ chatOpen: true, voiceState: 'connecting' });
+  closeChat = () => this.setState({ chatOpen: false, voiceState: 'idle' });
+  toggleCart = () => this.setState(s => ({ cartOpen: !s.cartOpen }));
+  closeCart = () => this.setState({ cartOpen: false });
+
+  renderVals() {
+    const { cartItems, cartOpen, chatOpen, demoStarted, voiceState, badgeBump, messages } = this.state;
+    const cartCount = cartItems.length;
+    const subtotal = cartItems.reduce((a, c) => a + c.price, 0);
+    const money = n => '$' + n;
+
+    const statusMap = {
+      idle: 'Ready', connecting: 'Connecting…', listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking',
+    };
+    const statusColors = {
+      idle: '#9A8C7C', connecting: '#B0917C', listening: '#5E8C6E', thinking: '#C19A45', speaking: '#C16A45',
+    };
+
+    // products for grid
+    const products = this.catalog.map(p => ({
+      ...p,
+      priceLabel: money(p.price),
+      tileStyle: `position: relative; aspect-ratio: 4/5; border-radius: 8px; overflow: hidden; background: ${p.color}; display: flex; align-items: flex-end;`,
+      tagStyle: `position: relative; margin: 11px; font-family: ui-monospace, monospace; font-size: 10px; letter-spacing: .1em; padding: 4px 8px; border-radius: 5px; background: rgba(255,255,255,.18); backdrop-filter: blur(4px); color: ${p.dark ? '#3a3127' : '#fff'};`,
+    }));
+
+    // cart items
+    const cartView = cartItems.map((c, i) => ({
+      ...c,
+      key: c.id + i,
+      priceLabel: money(c.price),
+      thumbStyle: `position: relative; width: 64px; height: 80px; border-radius: 8px; flex-shrink: 0; overflow: hidden; background: ${c.color};` + (c.isTryOn ? ' box-shadow: 0 0 0 2px #C16A45;' : ''),
+    }));
+
+    // message mapping
+    const tileBase = (color) => `position: relative; aspect-ratio: 1/1; background: ${color}; overflow: hidden;`;
+    const msgView = messages.map(m => {
+      const base = {
+        ...m,
+        isText: m.kind === 'text',
+        isCamera: m.kind === 'camera',
+        isProfile: m.kind === 'profile',
+        isRecs: m.kind === 'recs',
+        isTryon: m.kind === 'tryon',
+        isCheckout: m.kind === 'checkout',
+        isSuccess: m.kind === 'success',
+        wrapStyle: m.role === 'user'
+          ? 'display: flex; justify-content: flex-end; animation: loma_fadeUp .32s ease;'
+          : 'display: flex; justify-content: flex-start; animation: loma_fadeUp .32s ease;',
+      };
+      if (m.kind === 'text') {
+        base.bubbleStyle = m.role === 'user'
+          ? 'max-width: 80%; background: #211C18; color: #FAF7F2; font-size: 14.5px; line-height: 1.45; padding: 11px 15px; border-radius: 16px 16px 4px 16px;'
+          : 'max-width: 84%; background: #F4EDE3; color: #2A241E; font-size: 14.5px; line-height: 1.5; padding: 11px 15px; border-radius: 16px 16px 16px 4px;';
+      }
+      if (m.kind === 'camera') {
+        base.isPreview = m.status === 'preview';
+        base.isCaptured = m.status === 'captured' || m.status === 'analyzing';
+        base.isAnalyzing = m.status === 'analyzing';
+        base.attrs = (m.attrs || []).map(a => ({
+          ...a,
+          rowStyle: 'display: flex; justify-content: space-between; align-items: center; transition: opacity .4s ease; opacity: ' + (a.on ? '1' : '0.32') + ';',
+          valStyle: 'font-size: 13px; font-weight: 600; transition: color .4s ease; color: ' + (a.on ? '#C16A45' : '#C8BBAB') + ';',
+        }));
+      }
+      if (m.kind === 'recs') {
+        base.cards = (m.cards || []).map(r => ({
+          ...r,
+          priceLabel: money(r.price),
+          cardStyle: 'flex: 0 0 156px; scroll-snap-align: start; background: #fff; border-radius: 14px; overflow: hidden; transition: box-shadow .3s ease, transform .3s ease; box-shadow: ' + (r.selected ? '0 0 0 2px #C16A45, 0 8px 20px rgba(193,106,69,.18)' : '0 4px 14px rgba(33,28,24,.06)') + '; transform: ' + (r.selected ? 'translateY(-3px)' : 'none') + ';',
+          tileStyle: `position: relative; aspect-ratio: 1/1; background: ${r.color}; background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.06) 0 12px, transparent 12px 24px);`,
+        }));
+      }
+      if (m.kind === 'tryon') {
+        base.items = (m.items || []).map(t => ({
+          ...t,
+          priceLabel: money(t.price),
+          isGen: t.status === 'gen',
+          isDone: t.status === 'done',
+          tileStyle: tileBase(t.color) + ' background-image: linear-gradient(160deg, rgba(255,255,255,.12), transparent);',
+          add: () => this.addToCart(t.id, true),
+          btnLabel: t.added ? 'Added ✓' : 'Add',
+          btnStyle: t.added
+            ? 'border: none; background: #EAF1EA; color: #5E8C6E; font-size: 12.5px; font-weight: 600; padding: 7px 13px; border-radius: 999px; cursor: default; font-family: inherit;'
+            : 'border: none; background: #211C18; color: #FAF7F2; font-size: 12.5px; font-weight: 600; padding: 7px 14px; border-radius: 999px; cursor: pointer; font-family: inherit;',
+        }));
+      }
+      return base;
+    });
+
+    const showActiveOrb = chatOpen;
+    return {
+      // brand chrome handlers
+      openChat: this.openChat, closeChat: this.closeChat, toggleCart: this.toggleCart, closeCart: this.closeCart,
+      playDemo: this.playDemo, replayDemo: this.replayDemo, payNow: this.payNow,
+      orbRef: this.orbRef, scrollRef: this.scrollRef,
+
+      // storefront
+      products,
+      hasCart: cartCount > 0,
+      cartCount,
+      badgeStyle: 'position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #C16A45; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; transform-origin: center;' + (badgeBump ? ' animation: loma_badgeBump .6s cubic-bezier(.22,1,.36,1);' : ''),
+
+      // cart
+      cartOpen,
+      cartEmpty: cartCount === 0,
+      cartItems: cartView,
+      subtotalLabel: money(subtotal),
+
+      // launcher / chat
+      launcherVisible: !chatOpen,
+      chatOpen,
+      demoStarted,
+      showIntro: !demoStarted,
+      voiceState,
+      statusLabel: statusMap[voiceState] || 'Ready',
+      statusPillStyle: 'font-size: 12px; font-weight: 600; color: ' + (statusColors[voiceState] || '#9A8C7C') + ';',
+      vizWrapStyle: 'position: relative; flex-shrink: 0; height: ' + (demoStarted ? '128px' : '200px') + '; transition: height .4s ease; background: radial-gradient(circle at 50% 42%, #FDF6EF, #FFFDFA 72%); border-bottom: 1px solid #F4EDE3;',
+      showVizLabel: !demoStarted,
+
+      messages: msgView,
+      micStyle: 'width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: ' + (voiceState === 'listening' ? '#5E8C6E' : '#C16A45') + '; box-shadow: 0 4px 12px rgba(193,106,69,.3);',
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[project]
+name = "style-concierge-agent"
+version = "0.1.0"
+description = "LiveKit realtime personal shopper voice agent for the Telli Hack demo"
+requires-python = ">=3.10,<3.15"
+dependencies = [
+  "aiohttp>=3.10",
+  "livekit-agents[openai]~=1.5",
+  "python-dotenv>=1.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "pytest-asyncio>=0.24",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src"]
