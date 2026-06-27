@@ -104,8 +104,8 @@ P1_USER = (
     "Return a StyleProfile JSON exactly matching this schema: " + _SCHEMA_BLOCK
 )
 
-# Capability-critical vision read → the strong tier.
-_DEFAULT_MODEL = "gpt-5.5"
+# Fast vision tier (same as recommend/critic) — good enough for the styling read.
+_DEFAULT_MODEL = "gpt-5.4-mini"
 
 _MAX_ATTEMPTS = 2  # anti-loop: one read + one retry, never a 3rd.
 
@@ -119,7 +119,7 @@ def analyze(image, *, model: str = _DEFAULT_MODEL, cassette: str | None = None) 
         Filesystem path (str / PathLike) or raw image bytes. Passed straight to the
         transport; never stored here.
     model:
-        Vision model id. Defaults to ``"gpt-5.5"`` (the capability-critical tier).
+        Vision model id. Defaults to ``"gpt-5.4-mini"`` (the fast tier).
     cassette:
         Record/replay cassette name. Default (and with ``STYLIST_LIVE`` unset) the call is
         replayed from ``stylist/tests/fixtures/cassettes/<cassette>.json``.
