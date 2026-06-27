@@ -289,6 +289,13 @@ function defaultPythonRunner(request: StylistPythonRequest): StylistPythonResult
     'from stylist.tryon import tryon',
     'cassette = os.environ.get("STYLIST_TRYON_CASSETTE") or None',
     'catalog = json.loads(os.environ.get("STYLIST_TRYON_CATALOG") or "{}") or None',
+    // No per-request override → resolve option ids against the store catalog
+    // (catalog-store/store.json, with the merchant product images). Without a catalog,
+    // tryon would treat each id as a literal file path.
+    'if not catalog:',
+    '    from stylist.schemas import CatalogProduct',
+    '    with open("catalog-store/store.json") as _f:',
+    '        catalog = [CatalogProduct.from_dict(_d) for _d in json.load(_f)]',
     'result = tryon(sys.argv[1], sys.argv[2:], catalog=catalog, cassette=cassette)',
     'data = result.to_dict()',
     'path = data.get("image_url")',

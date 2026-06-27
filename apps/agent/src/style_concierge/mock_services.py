@@ -31,25 +31,21 @@ _CATEGORY_COPY = {
     },
 }
 
-# Mirrors the `stylist` brain catalog (stylist/catalog/sample_catalog.json): same product
-# IDs + flat-garment images (served by the web app from /catalog) so the agent's fallback
-# product list shares one identity with what the UI shows and what try-on renders.
+# Mirrors the store catalog (catalog-store/store.json + the merchant's product images served
+# from /catalog) so the agent's fallback product list shares one identity with what the UI
+# shows, what `recommend` scores, and what try-on renders.
 # (id, name, color, price, category, image_path)
 _CATALOG = [
-    ("TEE-OLIVE-001", "Heavyweight Olive Crew Tee", "olive", 29.9, "tshirts", "/catalog/tee-olive-001.png"),
-    ("TEE-RUST-002", "Garment-Dyed Rust Pocket Tee", "rust", 32.0, "tshirts", "/catalog/tee-rust-002.png"),
-    ("TEE-NAVY-003", "Classic Navy Crew Tee", "navy", 24.9, "tshirts", "/catalog/tee-navy-003.png"),
-    ("TEE-CHARCOAL-004", "Charcoal Slub V-Neck Tee", "charcoal", 27.5, "tshirts", "/catalog/tee-charcoal-004.png"),
-    ("TEE-CREAM-005", "Vintage Cream Boxy Tee", "cream", 34.9, "tshirts", "/catalog/tee-cream-005.png"),
-    ("TEE-TEAL-006", "Teal Ringer Tee", "teal", 26.0, "tshirts", "/catalog/tee-teal-006.png"),
-    ("TEE-BLACK-007", "Midnight Black Crew Tee", "black", 25.0, "tshirts", "/catalog/tee-black-007.png"),
-    ("TEE-WHITE-008", "Essential White Crew Tee", "white", 22.9, "tshirts", "/catalog/tee-white-008.png"),
-    ("HAT-CAP-009", "Olive 6-Panel Cap", "olive", 28.0, "hats", "/catalog/hat-cap-009.png"),
-    ("HAT-FEDORA-010", "Charcoal Short-Brim Fedora", "charcoal", 59.9, "hats", "/catalog/hat-fedora-010.png"),
-    ("HAT-BEANIE-011", "Navy Ribbed Beanie", "navy", 21.0, "hats", "/catalog/hat-beanie-011.png"),
-    ("HAT-BUCKET-012", "Rust Cotton Bucket Hat", "rust", 33.0, "hats", "/catalog/hat-bucket-012.png"),
-    ("HAT-CAP-013", "Black 5-Panel Cap", "black", 26.5, "hats", "/catalog/hat-cap-013.png"),
-    ("HAT-BEANIE-014", "Cream Cuffed Beanie", "cream", 23.5, "hats", "/catalog/hat-beanie-014.png"),
+    ("HAT-NORTHFACE-001", "Classic Cap", "black", 27.95, "hats", "/catalog/hat-northface-001.png"),
+    ("HAT-BOSS-002", "Zed Cap", "charcoal", 44.95, "hats", "/catalog/hat-boss-002.png"),
+    ("HAT-DODGERS-003", "LA Dodgers Branson Trucker", "black", 20.95, "hats", "/catalog/hat-dodgers-003.png"),
+    ("HAT-VONDUTCH-004", "Eye Trucker Cap", "black", 26.35, "hats", "/catalog/hat-vondutch-004.png"),
+    ("HAT-LYLE-005", "Eagle Baseball Cap", "black", 17.55, "hats", "/catalog/hat-lyle-005.png"),
+    ("TEE-MONOGRAM-001", "Monogram AOP Tee", "black", 33.95, "tshirts", "/catalog/tee-monogram-001.png"),
+    ("TEE-LUX-002", "Lux Color Graphic Tee", "grey", 34.95, "tshirts", "/catalog/tee-lux-002.png"),
+    ("TEE-CAMO-003", "Seasonal Essentials Camo Tee", "olive", 34.95, "tshirts", "/catalog/tee-camo-003.png"),
+    ("TEE-SHAPE-004", "Camo Shape Graphic Tee", "black", 24.95, "tshirts", "/catalog/tee-shape-004.png"),
+    ("TEE-TIRO-005", "House of Tiro Tee", "cream", 29.35, "tshirts", "/catalog/tee-tiro-005.png"),
 ]
 
 

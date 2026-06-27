@@ -66,7 +66,7 @@ describe('Mira live voice flow helpers', () => {
   });
 
   it('shows exactly the catalog products the live agent recommends', () => {
-    const recommended = ['TEE-OLIVE-001', 'TEE-RUST-002', 'TEE-CREAM-005', 'HAT-CAP-009', 'HAT-FEDORA-010'];
+    const recommended = ['TEE-MONOGRAM-001', 'TEE-LUX-002', 'TEE-CAMO-003', 'HAT-NORTHFACE-001', 'HAT-LYLE-005'];
     const products = resolveLiveDisplayProducts({
       category: 'tshirts',
       products: recommended.map((id) => ({ id })),
@@ -78,18 +78,18 @@ describe('Mira live voice flow helpers', () => {
 
   it('resolves selected try-on ids while dropping unknown ids', () => {
     const products = resolveLiveDisplayProducts({
-      selectedProductIds: ['HAT-CAP-009', 'missing'],
+      selectedProductIds: ['HAT-NORTHFACE-001', 'missing'],
     });
 
-    expect(products.map((product) => product.id)).toEqual(['HAT-CAP-009']);
+    expect(products.map((product) => product.id)).toEqual(['HAT-NORTHFACE-001']);
   });
 
   it('resolves selected product names from voice tool payloads', () => {
     expect(
       resolveLomaProductIdsFromPayload({
-        selectedProducts: ['Heavyweight Olive Crew Tee', 'olive cap'],
+        selectedProducts: ['Monogram AOP Tee', 'Eagle Baseball Cap'],
       }),
-    ).toEqual(['TEE-OLIVE-001', 'HAT-CAP-009']);
+    ).toEqual(['TEE-MONOGRAM-001', 'HAT-LYLE-005']);
   });
 
   it('recognizes recent speech that explicitly allows a camera capture', () => {
@@ -98,9 +98,9 @@ describe('Mira live voice flow helpers', () => {
   });
 
   it('matches selected products only when the user says displayed product names', () => {
-    const selected = lomaProducts.filter((product) => ['TEE-OLIVE-001', 'HAT-CAP-009'].includes(product.id));
+    const selected = lomaProducts.filter((product) => ['TEE-MONOGRAM-001', 'HAT-LYLE-005'].includes(product.id));
 
-    expect(selectedProductsMatchSpeech(selected, 'I like the Heavyweight Olive Crew Tee and Olive 6-Panel Cap.')).toBe(true);
+    expect(selectedProductsMatchSpeech(selected, 'I like the Monogram AOP Tee and Eagle Baseball Cap.')).toBe(true);
     expect(selectedProductsMatchSpeech(selected, 'I like two of them.')).toBe(false);
   });
 

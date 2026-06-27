@@ -1,0 +1,283 @@
+[
+  {
+    "id": "HAT-NORTHFACE-001",
+    "category": "hat",
+    "title": "The North Face Classic Cap",
+    "price": 27.95,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "apps/web/public/catalog/hat-northface-001.png",
+    "archetype": "6-panel cap",
+    "color": {
+      "name": "black",
+      "hex": "#1b1b1d",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "outdoor",
+      "minimal",
+      "streetwear"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "HAT-BOSS-002",
+    "category": "hat",
+    "title": "BOSS Zed Cap",
+    "price": 44.95,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "apps/web/public/catalog/hat-boss-002.png",
+    "archetype": "curved-brim cap",
+    "color": {
+      "name": "charcoal",
+      "hex": "#2c2c30",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "smart casual",
+      "minimal"
+    ],
+    "formality": 3,
+    "presentation": "unisex"
+  },
+  {
+    "id": "HAT-DODGERS-003",
+    "category": "hat",
+    "title": "'47 LA Dodgers Branson Trucker",
+    "price": 20.95,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "apps/web/public/catalog/hat-dodgers-003.png",
+    "archetype": "trucker cap",
+    "color": {
+      "name": "black",
+      "hex": "#19191b",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "streetwear",
+      "sport",
+      "casual"
+    ],
+    "formality": 1,
+    "presentation": "unisex"
+  },
+  {
+    "id": "HAT-VONDUTCH-004",
+    "category": "hat",
+    "title": "Von Dutch Eye Trucker Cap",
+    "price": 26.35,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "apps/web/public/catalog/hat-vondutch-004.png",
+    "archetype": "trucker cap",
+    "color": {
+      "name": "black",
+      "hex": "#161618",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "graphic",
+    "pattern_scale": "medium",
+    "style_tags": [
+      "streetwear",
+      "retro",
+      "bold"
+    ],
+    "formality": 1,
+    "presentation": "unisex"
+  },
+  {
+    "id": "HAT-LYLE-005",
+    "category": "hat",
+    "title": "Lyle & Scott Eagle Baseball Cap",
+    "price": 17.55,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "apps/web/public/catalog/hat-lyle-005.png",
+    "archetype": "dad cap",
+    "color": {
+      "name": "black",
+      "hex": "#141416",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "minimal",
+      "casual",
+      "heritage"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-MONOGRAM-001",
+    "category": "tshirt",
+    "title": "adidas Originals Monogram AOP Tee",
+    "price": 33.95,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "apps/web/public/catalog/tee-monogram-001.png",
+    "archetype": "crew regular",
+    "color": {
+      "name": "black",
+      "hex": "#1c1c1e",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "monogram",
+    "pattern_scale": "medium",
+    "style_tags": [
+      "streetwear",
+      "bold"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-LUX-002",
+    "category": "tshirt",
+    "title": "adidas Sportswear Lux Color Graphic Tee",
+    "price": 34.95,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "apps/web/public/catalog/tee-lux-002.png",
+    "archetype": "crew regular",
+    "color": {
+      "name": "grey",
+      "hex": "#4a4a4d",
+      "family": "neutral",
+      "value": "mid",
+      "saturation": "muted"
+    },
+    "pattern": "tie-dye",
+    "pattern_scale": "large",
+    "style_tags": [
+      "streetwear",
+      "graphic"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-CAMO-003",
+    "category": "tshirt",
+    "title": "adidas Sportswear Seasonal Essentials Camo Tee",
+    "price": 34.95,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "apps/web/public/catalog/tee-camo-003.png",
+    "archetype": "crew regular",
+    "color": {
+      "name": "olive",
+      "hex": "#6c6a3b",
+      "family": "warm",
+      "value": "mid",
+      "saturation": "muted"
+    },
+    "pattern": "graphic",
+    "pattern_scale": "medium",
+    "style_tags": [
+      "streetwear",
+      "military",
+      "casual"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-SHAPE-004",
+    "category": "tshirt",
+    "title": "adidas Sportswear Camo Shape Graphic Tee",
+    "price": 24.95,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "apps/web/public/catalog/tee-shape-004.png",
+    "archetype": "crew regular",
+    "color": {
+      "name": "black",
+      "hex": "#1a1a1c",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "graphic",
+    "pattern_scale": "medium",
+    "style_tags": [
+      "streetwear",
+      "sport"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-TIRO-005",
+    "category": "tshirt",
+    "title": "adidas Sportswear House of Tiro Tee",
+    "price": 29.35,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "apps/web/public/catalog/tee-tiro-005.png",
+    "archetype": "crew regular",
+    "color": {
+      "name": "cream",
+      "hex": "#efe9da",
+      "family": "warm",
+      "value": "light",
+      "saturation": "muted"
+    },
+    "pattern": "graphic",
+    "pattern_scale": "large",
+    "style_tags": [
+      "sport",
+      "retro",
+      "streetwear"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  }
+]

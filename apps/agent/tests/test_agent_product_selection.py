@@ -20,9 +20,9 @@ def test_agent_resolves_displayed_product_names_to_internal_ids():
         qualities={"hair_color": "dark brown", "skin_tone": "warm olive"},
     )
 
-    assert _resolve_product_selectors(products, ["Heavyweight Olive Crew Tee", "rust pocket tee"]) == [
-        "TEE-OLIVE-001",
-        "TEE-RUST-002",
+    assert _resolve_product_selectors(products, ["Monogram AOP Tee", "Lux Color Graphic Tee"]) == [
+        "TEE-MONOGRAM-001",
+        "TEE-LUX-002",
     ]
 
 
@@ -45,21 +45,21 @@ def test_agent_formats_delivery_payload_for_browser_rpc():
 
 
 def test_tryon_tool_response_is_compact_and_points_to_cart_selection():
-    response = _compact_tryon_response(["Olive 6-Panel Cap", "Charcoal Short-Brim Fedora"])
+    response = _compact_tryon_response(["Classic Cap", "Zed Cap"])
 
     assert response == {
         "status": "tryons_ready",
-        "product_names": ["Olive 6-Panel Cap", "Charcoal Short-Brim Fedora"],
+        "product_names": ["Classic Cap", "Zed Cap"],
         "next_step": "Say the try-on previews are ready, then ask which product names to add to cart.",
     }
 
 
 def test_cart_tool_response_is_compact_and_asks_for_delivery_details_immediately():
-    response = _compact_cart_response(["Olive 6-Panel Cap"])
+    response = _compact_cart_response(["Classic Cap"])
 
     assert response == {
         "status": "items_added",
-        "added_names": ["Olive 6-Panel Cap"],
+        "added_names": ["Classic Cap"],
         "next_step": (
             "Say the items were added, then ask for delivery details now: "
             "recipient name, street address, city, state, postal code, and phone."
@@ -135,14 +135,14 @@ def test_product_actions_require_source_speech_with_displayed_product_names():
     )
 
     assert _selection_source_matches_products(
-        "I like the Heavyweight Olive Crew Tee and Garment-Dyed Rust Pocket Tee.",
+        "I like the Monogram AOP Tee and Lux Color Graphic Tee.",
         products,
-        ["Heavyweight Olive Crew Tee", "Garment-Dyed Rust Pocket Tee"],
+        ["Monogram AOP Tee", "Lux Color Graphic Tee"],
     )
     assert not _selection_source_matches_products(
         "I like two of them.",
         products,
-        ["Heavyweight Olive Crew Tee", "Garment-Dyed Rust Pocket Tee"],
+        ["Monogram AOP Tee", "Lux Color Graphic Tee"],
     )
 
 

@@ -37,6 +37,12 @@ load_dotenv(REPO_DIR / ".env", override=False)
 load_dotenv(APP_DIR / ".env.local")
 load_dotenv(APP_DIR / ".env", override=False)
 
+# The agent's only use of the `stylist` brain is `recommend`, whose scoring/colour logic is
+# deterministic. Force its rationale layer OFFLINE (templated, no live LLM call) so product
+# search stays sub-second and Mira announces in sync with the UI. The live vision (analyze)
+# and image (try-on) calls run in the web process, which keeps STYLIST_LIVE=1.
+os.environ["STYLIST_LIVE"] = "0"
+
 # Make the repo-root `stylist` brain importable from the agent process. We APPEND (not
 # prepend) so a plain `import platform` still resolves to the stdlib, not the repo's
 # `platform/` package — the brain itself never needs the platform layer.
@@ -52,10 +58,14 @@ def _recommend_products(profile_dict: dict[str, Any], category_key: str, n: int 
     Product ids/images match the web catalog so the UI, recommend, and try-on share identity.
     """
     from stylist.recommend import recommend as stylist_recommend
-    from stylist.schemas import StyleProfile
+    from stylist.schemas import CatalogProduct, StyleProfile
+
+    store_path = os.path.join(str(REPO_DIR), "catalog-store", "store.json")
+    with open(store_path) as handle:
+        catalog = [CatalogProduct.from_dict(item) for item in json.load(handle)]
 
     profile = StyleProfile.from_dict(profile_dict)
-    options = stylist_recommend(profile, n=max(n, 2)).to_dict()
+    options = stylist_recommend(profile, n=max(n, 2), catalog=catalog).to_dict()
     bucket = "hats" if category_key == "hats" else "tshirts"
 
     products: list[dict[str, Any]] = []

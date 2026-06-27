@@ -570,7 +570,7 @@ export function StyleConciergeChat({
     );
 
     for (const index of attrs.keys()) {
-      await sleep(480);
+      await sleep(200);
 
       patchMsg(messageId, (message) => {
         if (message.kind !== 'camera') {
@@ -586,7 +586,7 @@ export function StyleConciergeChat({
       });
     }
 
-    await sleep(380);
+    await sleep(150);
     setVoiceState('speaking');
     addMsg({
       kind: 'profile',
@@ -708,18 +708,14 @@ export function StyleConciergeChat({
       return;
     }
 
-    await revealCameraAnalysis(messageId, qualities);
-
-    if (!isCurrentCapture(pending)) {
-      return;
-    }
-
     const imageRef = `browser-camera-${Date.now().toString(36)}`;
     lastCustomerImageRef.current = {
       imageRef,
       imageDataUrl: capture.imageDataUrl,
     };
 
+    // Resolve the RPC the instant the analysis is ready so Mira speaks in sync with the
+    // qualities appearing — the reveal animation plays after, without blocking her turn.
     pending.resolve(
       JSON.stringify({
         status: 'complete',
@@ -732,6 +728,8 @@ export function StyleConciergeChat({
     );
     pendingCaptureRef.current = null;
     activeCameraMessageIdRef.current = null;
+
+    void revealCameraAnalysis(messageId, qualities);
   }
 
   async function runVoiceCaptureCountdown(messageId: string) {

@@ -525,22 +525,17 @@ p {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  mix-blend-mode: multiply;
-  opacity: 0.52;
-  filter: grayscale(0.1) contrast(0.94);
-  transition: transform 360ms ease, opacity 360ms ease;
+  opacity: 1;
+  transition: transform 360ms ease;
 }
 
 .product-art > div {
   position: absolute;
   inset: 0;
-  background:
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0 12px, transparent 12px 24px),
-    linear-gradient(180deg, transparent 48%, rgba(33, 28, 24, 0.24));
+  background: linear-gradient(180deg, transparent 72%, rgba(33, 28, 24, 0.16));
 }
 
 .product-tile:hover .product-art img {
-  opacity: 0.62;
   transform: scale(1.04);
 }
 
@@ -755,8 +750,6 @@ p {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  mix-blend-mode: multiply;
-  opacity: 0.54;
 }
 
 .cart-thumb span {
@@ -1504,18 +1497,10 @@ p {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  mix-blend-mode: multiply;
-  opacity: 0.5;
 }
 
 .rec-art > div {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08) 0 12px,
-    transparent 12px 24px
-  );
+  display: none;
 }
 
 .rec-art span {
@@ -1646,8 +1631,6 @@ p {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  mix-blend-mode: multiply;
-  opacity: 0.58;
 }
 
 .tryon-art span:not(.spinner) {
