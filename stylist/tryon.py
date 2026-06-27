@@ -331,18 +331,19 @@ def _execute(base_photo, passes, *, fix_instruction=None) -> bytes:
     """
     current = load_image_bytes(base_photo)
     for p in passes:
-        regions = _regions_for(p.categories)
-        mask = build_mask(current, regions)
         prompt = build_p3_prompt(p.tee_desc, p.hat_desc, fix_instruction=fix_instruction)
-        edited = edit_image(
+        # NO mask: let gpt-image-2 do INSTRUCTION editing — place the garment naturally from the
+        # reference image. A mask forces crude DALL·E-style inpainting (the black square over the
+        # face + the t-shirt not sitting on the body). The P3 prompt already says preserve the
+        # face/pose/background and replace only the top, which is all gpt-image-2 needs.
+        current = edit_image(
             base_image=current,
             prompt=prompt,
-            mask=mask,
+            mask=None,
             reference_images=p.refs,
             model=RENDER_MODEL,
             cassette=p.cassette,
         )
-        current = _restore_outside(current, edited, regions)
     return current
 
 

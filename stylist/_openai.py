@@ -233,7 +233,7 @@ def edit_image(
     mask=None,
     reference_images=None,
     model: str = "gpt-image-2",
-    size: str = "1024x1024",
+    size: str = "auto",
     quality: str | None = None,
     cassette: str | None = None,
 ) -> bytes:
