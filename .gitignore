@@ -27,6 +27,10 @@ dist/
 build/
 coverage/
 
+# Platform runtime: sqlite db + downloaded/raw images.
+platform/data/
+!platform/data/.gitkeep
+
 # Logs and OS files
 *.log
 .DS_Store
