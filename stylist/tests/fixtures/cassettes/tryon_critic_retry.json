@@ -1,0 +1,12 @@
+{
+  "identity_preserved": 0.61,
+  "pose_preserved": 0.9,
+  "tshirt_correct": false,
+  "hat_natural": true,
+  "artifacts": [
+    "color_bleed",
+    "warped_face"
+  ],
+  "verdict": "retry",
+  "fix_instruction": "Restore the original face exactly and correct the t-shirt colour to match the olive reference swatch."
+}

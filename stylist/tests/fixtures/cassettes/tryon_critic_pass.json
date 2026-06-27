@@ -1,0 +1,9 @@
+{
+  "identity_preserved": 0.96,
+  "pose_preserved": 0.95,
+  "tshirt_correct": true,
+  "hat_natural": true,
+  "artifacts": [],
+  "verdict": "pass",
+  "fix_instruction": ""
+}

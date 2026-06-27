@@ -1,0 +1,19 @@
+{
+  "category": "tshirt",
+  "archetype": "crew boxy",
+  "color": {
+    "name": "cream",
+    "hex": "#efe6d2",
+    "family": "warm",
+    "value": "light",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "vintage",
+    "relaxed"
+  ],
+  "formality": 1,
+  "presentation": "feminine"
+}

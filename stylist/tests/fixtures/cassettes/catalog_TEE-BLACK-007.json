@@ -1,0 +1,19 @@
+{
+  "category": "tshirt",
+  "archetype": "crew fitted",
+  "color": {
+    "name": "black",
+    "hex": "#17181a",
+    "family": "neutral",
+    "value": "dark",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "minimal",
+    "versatile"
+  ],
+  "formality": 2,
+  "presentation": "unisex"
+}

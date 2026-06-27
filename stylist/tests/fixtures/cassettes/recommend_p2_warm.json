@@ -1,0 +1,38 @@
+{
+  "items": [
+    {
+      "product_id": "HAT-CAP-009",
+      "rationale": "[P2] This olive 6-panel cap echoes your warm-autumn undertone and adds crown height that balances a rounder face."
+    },
+    {
+      "product_id": "HAT-CAP-013",
+      "rationale": "[P2] The clean black 5-panel cap keeps your streetwear edge sharp without fighting your warm colouring."
+    },
+    {
+      "product_id": "TEE-OLIVE-001",
+      "rationale": "[P2] Heavyweight olive flatters your athletic build and matches the streetwear you already wear."
+    },
+    {
+      "product_id": "TEE-RUST-002",
+      "rationale": "[P2] Garment-dyed rust leans straight into your warm-autumn palette while staying an easy everyday tee."
+    },
+    {
+      "product_id": "TEE-FAKE-999",
+      "color_hex": "#000000",
+      "title": "Phantom Injected Tee",
+      "rationale": "[P2] PHANTOM item the engine must ignore — proves the LLM cannot add products."
+    }
+  ],
+  "combos": [
+    {
+      "hat_id": "HAT-CAP-009",
+      "tshirt_id": "TEE-OLIVE-001",
+      "rationale": "[P2] Tonal olive-on-olive reads as one deliberate streetwear look, not two colours competing."
+    },
+    {
+      "hat_id": "HAT-FAKE",
+      "tshirt_id": "TEE-FAKE",
+      "rationale": "[P2] PHANTOM combo the engine must ignore."
+    }
+  ]
+}

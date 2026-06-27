@@ -1,0 +1,9 @@
+# Runtime dependencies for the /stylist brain (LiveKit-free inference).
+# `import stylist.schemas` and `import stylist._openai` need NEITHER of these —
+# httpx is imported lazily, only inside the functions that make live calls.
+#
+# Tests run on the Python stdlib `unittest` (no pytest, no test deps):
+#   python3 -m unittest discover -s stylist/tests -v
+
+httpx        # HTTP client for OpenAI calls in _openai.py (lazy import)
+Pillow       # image / mask handling for tryon (later phases)

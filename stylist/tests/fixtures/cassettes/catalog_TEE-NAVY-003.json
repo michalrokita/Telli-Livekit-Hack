@@ -1,0 +1,19 @@
+{
+  "category": "tshirt",
+  "archetype": "crew regular",
+  "color": {
+    "name": "navy",
+    "hex": "#1f2d4d",
+    "family": "cool",
+    "value": "dark",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "classic",
+    "minimal"
+  ],
+  "formality": 2,
+  "presentation": "unisex"
+}

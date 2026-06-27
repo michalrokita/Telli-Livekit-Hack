@@ -1,0 +1,19 @@
+{
+  "category": "tshirt",
+  "archetype": "ringer crew regular",
+  "color": {
+    "name": "teal",
+    "hex": "#128a86",
+    "family": "cool",
+    "value": "mid",
+    "saturation": "bright"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "retro",
+    "streetwear"
+  ],
+  "formality": 1,
+  "presentation": "unisex"
+}
