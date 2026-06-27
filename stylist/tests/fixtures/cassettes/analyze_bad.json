@@ -1,0 +1,45 @@
+{
+  "image_quality": {
+    "usable": false,
+    "issues": ["low_light", "face_occluded", "torso_not_visible"],
+    "framing": "head_only",
+    "white_balance_cast": "unknown",
+    "wb_confidence": 0.15
+  },
+  "person": {
+    "apparent_age_range": "unknown",
+    "presentation": "androgynous",
+    "presentation_confidence": 0.2
+  },
+  "coloring": {
+    "skin_undertone": "neutral",
+    "undertone_cues": ["too dark to read skin reliably; leaning neutral, low confidence"],
+    "undertone_confidence": 0.1,
+    "skin_depth": "medium",
+    "hair_color": "indeterminate",
+    "eye_color": "indeterminate",
+    "contrast_level": "low",
+    "season": "unknown",
+    "season_confidence": 0.1
+  },
+  "face": {
+    "shape": "oval",
+    "shape_confidence": 0.15,
+    "neck_length": "average",
+    "notable_features": []
+  },
+  "build": {
+    "type": "average",
+    "shoulder_width": "average",
+    "build_confidence": 0.12
+  },
+  "current_style": {
+    "detected_vibe": [],
+    "currently_wearing": "not visible",
+    "accessories": []
+  },
+  "tryon_feasibility": {
+    "hat": false,
+    "tshirt": false
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "category": "hat",
+  "archetype": "bucket hat",
+  "color": {
+    "name": "rust",
+    "hex": "#a04b27",
+    "family": "warm",
+    "value": "mid",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "streetwear",
+    "retro"
+  ],
+  "formality": 1,
+  "presentation": "unisex"
+}

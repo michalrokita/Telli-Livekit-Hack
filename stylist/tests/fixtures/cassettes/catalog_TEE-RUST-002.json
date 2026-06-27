@@ -1,0 +1,19 @@
+{
+  "category": "tshirt",
+  "archetype": "pocket crew regular",
+  "color": {
+    "name": "rust",
+    "hex": "#9a4521",
+    "family": "warm",
+    "value": "mid",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "casual",
+    "heritage"
+  ],
+  "formality": 2,
+  "presentation": "masculine"
+}

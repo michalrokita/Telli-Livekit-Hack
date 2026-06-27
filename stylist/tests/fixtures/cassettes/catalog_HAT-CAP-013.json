@@ -1,0 +1,19 @@
+{
+  "category": "hat",
+  "archetype": "5-panel cap",
+  "color": {
+    "name": "black",
+    "hex": "#18191b",
+    "family": "neutral",
+    "value": "dark",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "streetwear",
+    "minimal"
+  ],
+  "formality": 1,
+  "presentation": "masculine"
+}

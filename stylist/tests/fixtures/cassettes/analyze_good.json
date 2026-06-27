@@ -1,0 +1,49 @@
+{
+  "image_quality": {
+    "usable": true,
+    "issues": [],
+    "framing": "head_and_torso",
+    "white_balance_cast": "neutral",
+    "wb_confidence": 0.72
+  },
+  "person": {
+    "apparent_age_range": "25-34",
+    "presentation": "masculine",
+    "presentation_confidence": 0.8
+  },
+  "coloring": {
+    "skin_undertone": "warm",
+    "undertone_cues": [
+      "golden cast in WB-corrected cheek",
+      "warm-brown hair",
+      "neutral sclera confirms light is balanced"
+    ],
+    "undertone_confidence": 0.61,
+    "skin_depth": "medium",
+    "hair_color": "dark_brown",
+    "eye_color": "hazel",
+    "contrast_level": "high",
+    "season": "autumn",
+    "season_confidence": 0.52
+  },
+  "face": {
+    "shape": "round",
+    "shape_confidence": 0.58,
+    "neck_length": "short",
+    "notable_features": ["strong jaw"]
+  },
+  "build": {
+    "type": "athletic",
+    "shoulder_width": "broad",
+    "build_confidence": 0.5
+  },
+  "current_style": {
+    "detected_vibe": ["streetwear", "casual"],
+    "currently_wearing": "dark crewneck tee",
+    "accessories": []
+  },
+  "tryon_feasibility": {
+    "hat": true,
+    "tshirt": true
+  }
+}

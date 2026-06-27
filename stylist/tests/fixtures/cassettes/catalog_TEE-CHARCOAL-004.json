@@ -1,0 +1,19 @@
+{
+  "category": "tshirt",
+  "archetype": "v-neck regular",
+  "color": {
+    "name": "charcoal",
+    "hex": "#36393b",
+    "family": "neutral",
+    "value": "dark",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "minimal",
+    "modern"
+  ],
+  "formality": 2,
+  "presentation": "unisex"
+}

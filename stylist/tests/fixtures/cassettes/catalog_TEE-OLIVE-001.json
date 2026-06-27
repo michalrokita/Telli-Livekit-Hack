@@ -1,0 +1,19 @@
+{
+  "category": "tshirt",
+  "archetype": "crew regular",
+  "color": {
+    "name": "olive",
+    "hex": "#556b2f",
+    "family": "warm",
+    "value": "mid",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "streetwear",
+    "minimal"
+  ],
+  "formality": 2,
+  "presentation": "unisex"
+}

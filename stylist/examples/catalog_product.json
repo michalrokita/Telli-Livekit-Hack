@@ -1,0 +1,21 @@
+{
+  "id": "TEE-OLIVE-001",
+  "category": "tshirt",
+  "title": "Heavyweight Olive Crew Tee",
+  "price": 29.9,
+  "sizes": ["S", "M", "L", "XL"],
+  "image_url": "catalog/images/tee-olive-001.png",
+  "archetype": "crew regular",
+  "color": {
+    "name": "olive",
+    "hex": "#566b2e",
+    "family": "warm",
+    "value": "mid",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": ["streetwear", "minimal"],
+  "formality": 2,
+  "presentation": "unisex"
+}

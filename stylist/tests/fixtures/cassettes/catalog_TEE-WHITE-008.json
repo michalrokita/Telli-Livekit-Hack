@@ -1,0 +1,19 @@
+{
+  "category": "tshirt",
+  "archetype": "crew regular",
+  "color": {
+    "name": "white",
+    "hex": "#f4f4f1",
+    "family": "neutral",
+    "value": "light",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "essential",
+    "minimal"
+  ],
+  "formality": 2,
+  "presentation": "unisex"
+}

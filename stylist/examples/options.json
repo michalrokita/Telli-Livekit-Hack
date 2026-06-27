@@ -1,0 +1,38 @@
+{
+  "hats": [
+    {
+      "product_id": "HAT-CAP-002",
+      "category": "hat",
+      "title": "6-Panel Olive Cap",
+      "color_hex": "#4f5b2a",
+      "price": 24.0,
+      "sizes": ["OS"],
+      "score": 86.5,
+      "breakdown": {"colour": 0.36, "shape": 0.27, "vibe": 0.16, "versatility": 0.08},
+      "rationale": "Olive sits squarely in your warm autumn palette, and the structured 6-panel crown adds height to balance a rounder face."
+    }
+  ],
+  "tshirts": [
+    {
+      "product_id": "TEE-OLIVE-001",
+      "category": "tshirt",
+      "title": "Heavyweight Olive Crew Tee",
+      "color_hex": "#566b2e",
+      "price": 29.9,
+      "sizes": ["S", "M", "L", "XL"],
+      "score": 88.0,
+      "breakdown": {"colour": 0.38, "shape": 0.28, "vibe": 0.14, "versatility": 0.08},
+      "rationale": "A muted olive crew flatters your athletic build and matches the streetwear vibe you already wear."
+    }
+  ],
+  "combos": [
+    {
+      "hat_id": "HAT-CAP-002",
+      "tshirt_id": "TEE-OLIVE-001",
+      "harmony_score": 0.82,
+      "individual_quality": 0.87,
+      "style_coherence": 0.9,
+      "rationale": "Tonal olive-on-olive reads as a deliberate, coherent streetwear look without two colours competing."
+    }
+  ]
+}

@@ -1,0 +1,394 @@
+[
+  {
+    "id": "TEE-OLIVE-001",
+    "category": "tshirt",
+    "title": "Heavyweight Olive Crew Tee",
+    "price": 29.9,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "catalog/images/tee-olive-001.png",
+    "archetype": "crew regular",
+    "color": {
+      "name": "olive",
+      "hex": "#556b2f",
+      "family": "warm",
+      "value": "mid",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "streetwear",
+      "minimal"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-RUST-002",
+    "category": "tshirt",
+    "title": "Garment-Dyed Rust Pocket Tee",
+    "price": 32.0,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "catalog/images/tee-rust-002.png",
+    "archetype": "pocket crew regular",
+    "color": {
+      "name": "rust",
+      "hex": "#9a4521",
+      "family": "warm",
+      "value": "mid",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "casual",
+      "heritage"
+    ],
+    "formality": 2,
+    "presentation": "masculine"
+  },
+  {
+    "id": "TEE-NAVY-003",
+    "category": "tshirt",
+    "title": "Classic Navy Crew Tee",
+    "price": 24.9,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "image_url": "catalog/images/tee-navy-003.png",
+    "archetype": "crew regular",
+    "color": {
+      "name": "navy",
+      "hex": "#1f2d4d",
+      "family": "cool",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "classic",
+      "minimal"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-CHARCOAL-004",
+    "category": "tshirt",
+    "title": "Charcoal Slub V-Neck Tee",
+    "price": 27.5,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "catalog/images/tee-charcoal-004.png",
+    "archetype": "v-neck regular",
+    "color": {
+      "name": "charcoal",
+      "hex": "#36393b",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "minimal",
+      "modern"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-CREAM-005",
+    "category": "tshirt",
+    "title": "Vintage Cream Boxy Tee",
+    "price": 34.9,
+    "sizes": [
+      "XS",
+      "S",
+      "M",
+      "L"
+    ],
+    "image_url": "catalog/images/tee-cream-005.png",
+    "archetype": "crew boxy",
+    "color": {
+      "name": "cream",
+      "hex": "#efe6d2",
+      "family": "warm",
+      "value": "light",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "vintage",
+      "relaxed"
+    ],
+    "formality": 1,
+    "presentation": "feminine"
+  },
+  {
+    "id": "TEE-TEAL-006",
+    "category": "tshirt",
+    "title": "Teal Ringer Tee",
+    "price": 26.0,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "catalog/images/tee-teal-006.png",
+    "archetype": "ringer crew regular",
+    "color": {
+      "name": "teal",
+      "hex": "#128a86",
+      "family": "cool",
+      "value": "mid",
+      "saturation": "bright"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "retro",
+      "streetwear"
+    ],
+    "formality": 1,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-BLACK-007",
+    "category": "tshirt",
+    "title": "Midnight Black Crew Tee",
+    "price": 25.0,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL",
+      "XXL"
+    ],
+    "image_url": "catalog/images/tee-black-007.png",
+    "archetype": "crew fitted",
+    "color": {
+      "name": "black",
+      "hex": "#17181a",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "minimal",
+      "versatile"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "TEE-WHITE-008",
+    "category": "tshirt",
+    "title": "Essential White Crew Tee",
+    "price": 22.9,
+    "sizes": [
+      "S",
+      "M",
+      "L",
+      "XL"
+    ],
+    "image_url": "catalog/images/tee-white-008.png",
+    "archetype": "crew regular",
+    "color": {
+      "name": "white",
+      "hex": "#f4f4f1",
+      "family": "neutral",
+      "value": "light",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "essential",
+      "minimal"
+    ],
+    "formality": 2,
+    "presentation": "unisex"
+  },
+  {
+    "id": "HAT-CAP-009",
+    "category": "hat",
+    "title": "Olive 6-Panel Cap",
+    "price": 28.0,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "catalog/images/hat-cap-009.png",
+    "archetype": "6-panel cap",
+    "color": {
+      "name": "olive",
+      "hex": "#5b6230",
+      "family": "warm",
+      "value": "mid",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "streetwear",
+      "outdoor"
+    ],
+    "formality": 1,
+    "presentation": "unisex"
+  },
+  {
+    "id": "HAT-FEDORA-010",
+    "category": "hat",
+    "title": "Charcoal Short-Brim Fedora",
+    "price": 59.9,
+    "sizes": [
+      "S/M",
+      "L/XL"
+    ],
+    "image_url": "catalog/images/hat-fedora-010.png",
+    "archetype": "short-brim fedora",
+    "color": {
+      "name": "charcoal",
+      "hex": "#3a3d40",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "smart-casual",
+      "classic"
+    ],
+    "formality": 3,
+    "presentation": "masculine"
+  },
+  {
+    "id": "HAT-BEANIE-011",
+    "category": "hat",
+    "title": "Navy Ribbed Beanie",
+    "price": 21.0,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "catalog/images/hat-beanie-011.png",
+    "archetype": "ribbed beanie",
+    "color": {
+      "name": "navy",
+      "hex": "#20304f",
+      "family": "cool",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "ribbed",
+    "pattern_scale": "fine",
+    "style_tags": [
+      "casual",
+      "winter"
+    ],
+    "formality": 1,
+    "presentation": "unisex"
+  },
+  {
+    "id": "HAT-BUCKET-012",
+    "category": "hat",
+    "title": "Rust Cotton Bucket Hat",
+    "price": 33.0,
+    "sizes": [
+      "S/M",
+      "L/XL"
+    ],
+    "image_url": "catalog/images/hat-bucket-012.png",
+    "archetype": "bucket hat",
+    "color": {
+      "name": "rust",
+      "hex": "#a04b27",
+      "family": "warm",
+      "value": "mid",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "streetwear",
+      "retro"
+    ],
+    "formality": 1,
+    "presentation": "unisex"
+  },
+  {
+    "id": "HAT-CAP-013",
+    "category": "hat",
+    "title": "Black 5-Panel Cap",
+    "price": 26.5,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "catalog/images/hat-cap-013.png",
+    "archetype": "5-panel cap",
+    "color": {
+      "name": "black",
+      "hex": "#18191b",
+      "family": "neutral",
+      "value": "dark",
+      "saturation": "muted"
+    },
+    "pattern": "solid",
+    "pattern_scale": "none",
+    "style_tags": [
+      "streetwear",
+      "minimal"
+    ],
+    "formality": 1,
+    "presentation": "masculine"
+  },
+  {
+    "id": "HAT-BEANIE-014",
+    "category": "hat",
+    "title": "Cream Cuffed Beanie",
+    "price": 23.5,
+    "sizes": [
+      "OS"
+    ],
+    "image_url": "catalog/images/hat-beanie-014.png",
+    "archetype": "cuffed beanie",
+    "color": {
+      "name": "cream",
+      "hex": "#ece2cd",
+      "family": "warm",
+      "value": "light",
+      "saturation": "muted"
+    },
+    "pattern": "ribbed",
+    "pattern_scale": "fine",
+    "style_tags": [
+      "casual",
+      "cozy"
+    ],
+    "formality": 1,
+    "presentation": "feminine"
+  }
+]

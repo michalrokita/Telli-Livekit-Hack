@@ -1,0 +1,19 @@
+{
+  "category": "hat",
+  "archetype": "6-panel cap",
+  "color": {
+    "name": "olive",
+    "hex": "#5b6230",
+    "family": "warm",
+    "value": "mid",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "streetwear",
+    "outdoor"
+  ],
+  "formality": 1,
+  "presentation": "unisex"
+}

@@ -1,0 +1,114 @@
+[
+  {
+    "id": "TEE-OLIVE-001",
+    "category": "tshirt",
+    "title": "Heavyweight Olive Crew Tee",
+    "price": 29.9,
+    "sizes": ["S", "M", "L", "XL"],
+    "image_url": "catalog/images/tee-olive-001.png"
+  },
+  {
+    "id": "TEE-RUST-002",
+    "category": "tshirt",
+    "title": "Garment-Dyed Rust Pocket Tee",
+    "price": 32.0,
+    "sizes": ["S", "M", "L", "XL"],
+    "image_url": "catalog/images/tee-rust-002.png"
+  },
+  {
+    "id": "TEE-NAVY-003",
+    "category": "tshirt",
+    "title": "Classic Navy Crew Tee",
+    "price": 24.9,
+    "sizes": ["S", "M", "L", "XL", "XXL"],
+    "image_url": "catalog/images/tee-navy-003.png"
+  },
+  {
+    "id": "TEE-CHARCOAL-004",
+    "category": "tshirt",
+    "title": "Charcoal Slub V-Neck Tee",
+    "price": 27.5,
+    "sizes": ["S", "M", "L", "XL"],
+    "image_url": "catalog/images/tee-charcoal-004.png"
+  },
+  {
+    "id": "TEE-CREAM-005",
+    "category": "tshirt",
+    "title": "Vintage Cream Boxy Tee",
+    "price": 34.9,
+    "sizes": ["XS", "S", "M", "L"],
+    "image_url": "catalog/images/tee-cream-005.png"
+  },
+  {
+    "id": "TEE-TEAL-006",
+    "category": "tshirt",
+    "title": "Teal Ringer Tee",
+    "price": 26.0,
+    "sizes": ["S", "M", "L", "XL"],
+    "image_url": "catalog/images/tee-teal-006.png"
+  },
+  {
+    "id": "TEE-BLACK-007",
+    "category": "tshirt",
+    "title": "Midnight Black Crew Tee",
+    "price": 25.0,
+    "sizes": ["S", "M", "L", "XL", "XXL"],
+    "image_url": "catalog/images/tee-black-007.png"
+  },
+  {
+    "id": "TEE-WHITE-008",
+    "category": "tshirt",
+    "title": "Essential White Crew Tee",
+    "price": 22.9,
+    "sizes": ["S", "M", "L", "XL"],
+    "image_url": "catalog/images/tee-white-008.png"
+  },
+  {
+    "id": "HAT-CAP-009",
+    "category": "hat",
+    "title": "Olive 6-Panel Cap",
+    "price": 28.0,
+    "sizes": ["OS"],
+    "image_url": "catalog/images/hat-cap-009.png"
+  },
+  {
+    "id": "HAT-FEDORA-010",
+    "category": "hat",
+    "title": "Charcoal Short-Brim Fedora",
+    "price": 59.9,
+    "sizes": ["S/M", "L/XL"],
+    "image_url": "catalog/images/hat-fedora-010.png"
+  },
+  {
+    "id": "HAT-BEANIE-011",
+    "category": "hat",
+    "title": "Navy Ribbed Beanie",
+    "price": 21.0,
+    "sizes": ["OS"],
+    "image_url": "catalog/images/hat-beanie-011.png"
+  },
+  {
+    "id": "HAT-BUCKET-012",
+    "category": "hat",
+    "title": "Rust Cotton Bucket Hat",
+    "price": 33.0,
+    "sizes": ["S/M", "L/XL"],
+    "image_url": "catalog/images/hat-bucket-012.png"
+  },
+  {
+    "id": "HAT-CAP-013",
+    "category": "hat",
+    "title": "Black 5-Panel Cap",
+    "price": 26.5,
+    "sizes": ["OS"],
+    "image_url": "catalog/images/hat-cap-013.png"
+  },
+  {
+    "id": "HAT-BEANIE-014",
+    "category": "hat",
+    "title": "Cream Cuffed Beanie",
+    "price": 23.5,
+    "sizes": ["OS"],
+    "image_url": "catalog/images/hat-beanie-014.png"
+  }
+]

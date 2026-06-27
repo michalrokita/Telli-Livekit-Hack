@@ -1,0 +1,19 @@
+{
+  "category": "hat",
+  "archetype": "cuffed beanie",
+  "color": {
+    "name": "cream",
+    "hex": "#ece2cd",
+    "family": "warm",
+    "value": "light",
+    "saturation": "muted"
+  },
+  "pattern": "ribbed",
+  "pattern_scale": "fine",
+  "style_tags": [
+    "casual",
+    "cozy"
+  ],
+  "formality": 1,
+  "presentation": "feminine"
+}

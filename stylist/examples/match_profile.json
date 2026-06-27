@@ -1,0 +1,22 @@
+{
+  "palette": [
+    {"name": "olive", "hex": "#556b2f", "family": "warm"},
+    {"name": "rust", "hex": "#b7410e", "family": "warm"},
+    {"name": "cream", "hex": "#f5f0e1", "family": "warm"}
+  ],
+  "palette_strategy": "warm-autumn",
+  "contrast_strategy": "bold",
+  "hat": {
+    "archetypes_ok": ["6-panel cap", "short-brim fedora"],
+    "archetypes_avoid": ["round beanie low"],
+    "scale": "regular"
+  },
+  "tshirt": {
+    "fits_ok": ["regular", "fitted"],
+    "necklines_ok": ["crew", "slight V"],
+    "avoid": ["clingy", "big horizontal stripe"]
+  },
+  "vibe": {"streetwear": 0.6, "casual": 0.4},
+  "presentation_filter": "masculine",
+  "skin_depth": "medium"
+}

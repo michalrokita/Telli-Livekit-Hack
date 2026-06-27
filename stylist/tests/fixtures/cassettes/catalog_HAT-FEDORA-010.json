@@ -1,0 +1,19 @@
+{
+  "category": "hat",
+  "archetype": "short-brim fedora",
+  "color": {
+    "name": "charcoal",
+    "hex": "#3a3d40",
+    "family": "neutral",
+    "value": "dark",
+    "saturation": "muted"
+  },
+  "pattern": "solid",
+  "pattern_scale": "none",
+  "style_tags": [
+    "smart-casual",
+    "classic"
+  ],
+  "formality": 3,
+  "presentation": "masculine"
+}

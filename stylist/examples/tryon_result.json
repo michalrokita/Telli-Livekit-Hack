@@ -1,0 +1,15 @@
+{
+  "image_url": "https://demo.artificialartz.xyz/stylist/renders/sess-123-final.png",
+  "status": "pass",
+  "rendered_option_ids": ["HAT-CAP-002", "TEE-OLIVE-001"],
+  "retry_count": 0,
+  "critic_report": {
+    "identity_preserved": 0.96,
+    "pose_preserved": 0.94,
+    "tshirt_correct": true,
+    "hat_natural": true,
+    "artifacts": [],
+    "verdict": "pass",
+    "fix_instruction": ""
+  }
+}
