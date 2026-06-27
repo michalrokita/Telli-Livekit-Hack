@@ -47,13 +47,15 @@ import {
   normalizeRpcCategory,
   normalizeDeliveryDetailsPayload,
   parseRpcPayload,
+  profileChipsFromQualities,
   resolveLomaProductIdsFromPayload,
   resolveLiveDisplayProducts,
   type CheckoutDeliveryDetails,
   voiceStateFromAgentState,
   withTimeoutFallback,
 } from '@/lib/mira-live-flow';
-import { analyzeCustomerImage, type CustomerQualities } from '@/lib/shopper-flow';
+import { analyzeShopperImage, generateShopperTryOns } from '@/lib/design-adapter';
+import type { CustomerQualities, ProductRecommendation } from '@/lib/shopper-flow';
 
 type StyleConciergeChatProps = {
   cartCount: number;
@@ -228,6 +230,7 @@ export function StyleConciergeChat({
   const liveRecommendationsIdRef = useRef<string | null>(null);
   const liveTryOnIdRef = useRef<string | null>(null);
   const liveCheckoutIdRef = useRef<string | null>(null);
+  const lastCustomerImageRef = useRef<{ imageRef: string; imageDataUrl: string } | null>(null);
 
   useEffect(() => {
     voiceStateRef.current = voiceState;
@@ -247,6 +250,7 @@ export function StyleConciergeChat({
     cameraReadyWaitersRef.current.forEach((resolve) => resolve('cancelled'));
     cameraReadyWaitersRef.current.clear();
     liveCheckoutIdRef.current = null;
+    lastCustomerImageRef.current = null;
     clearDemoTimers();
   }, [clearDemoTimers]);
 
@@ -541,13 +545,7 @@ export function StyleConciergeChat({
     setVoiceState('speaking');
     addMsg({
       kind: 'profile',
-      chips: [
-        { label: '', value: 'Warm undertone' },
-        { label: '', value: 'Olive skin' },
-        { label: '', value: 'Deep brown hair' },
-        { label: '', value: 'Soft contrast' },
-        { label: '', value: 'Relaxed fit' },
-      ],
+      chips: profileChipsFromQualities(qualities),
     });
   }
 
@@ -632,10 +630,31 @@ export function StyleConciergeChat({
       return;
     }
 
-    const qualities = await analyzeCustomerImage({
-      imageDataUrl: capture.imageDataUrl,
-      category: pending.category,
-    });
+    let qualities: CustomerQualities;
+    try {
+      qualities = await analyzeShopperImage({
+        imageDataUrl: capture.imageDataUrl,
+        category: pending.category,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Image analysis failed.';
+      patchMsg(messageId, (currentMessage) =>
+        currentMessage.kind === 'camera'
+          ? {
+              ...currentMessage,
+              status: 'captured',
+              prompt: 'Image analysis failed. Tell Mira to retake the photo and try again.',
+              error: message,
+              actionBusy: false,
+            }
+          : currentMessage,
+      );
+      pending.reject(new Error(message));
+      pendingCaptureRef.current = null;
+      activeCameraMessageIdRef.current = messageId;
+      setVoiceState('listening');
+      return;
+    }
 
     if (!isCurrentCapture(pending)) {
       return;
@@ -647,11 +666,16 @@ export function StyleConciergeChat({
       return;
     }
 
+    const imageRef = `browser-camera-${Date.now().toString(36)}`;
+    lastCustomerImageRef.current = {
+      imageRef,
+      imageDataUrl: capture.imageDataUrl,
+    };
+
     pending.resolve(
       JSON.stringify({
         status: 'complete',
-        imageRef: `browser-camera-${Date.now().toString(36)}`,
-        imageDataUrl: capture.imageDataUrl,
+        imageRef,
         captureSource: capture.source,
         category: pending.category,
         qualities,
@@ -904,7 +928,33 @@ export function StyleConciergeChat({
     });
     liveTryOnIdRef.current = tryOnId;
 
-    const tryOnJobs = await createLomaTryOnJobs(selectedProducts);
+    const customerImage = lastCustomerImageRef.current;
+    let tryOnJobs;
+    try {
+      tryOnJobs = await generateShopperTryOns({
+        customerImageId: customerImage?.imageRef ?? 'loma-live-shopper',
+        customerImageDataUrl: customerImage?.imageDataUrl,
+        products: selectedProducts.map(toProductRecommendation),
+        selectedProductIds: selectedProducts.map((product) => product.id),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Try-on generation failed.';
+      patchMsg(tryOnId, (currentMessage) =>
+        currentMessage.kind === 'tryon'
+          ? {
+              ...currentMessage,
+              title: 'Try-on generation needs a retry',
+              subtitle: message,
+              items: currentMessage.items.map((item) => ({
+                ...item,
+                status: 'done' as const,
+              })),
+            }
+          : currentMessage,
+      );
+      setVoiceState('listening');
+      throw new Error(message);
+    }
     const jobsByProductId = new Map(tryOnJobs.map((job) => [job.productId, job]));
 
     for (const [index, product] of selectedProducts.entries()) {
@@ -958,7 +1008,7 @@ export function StyleConciergeChat({
 
     return JSON.stringify({
       status: 'complete',
-      images: tryOnJobs,
+      imageCount: tryOnJobs.length,
       selectedProducts: selectedProducts.map((product) => ({ id: product.id, name: product.name })),
     });
   }
@@ -1036,7 +1086,6 @@ export function StyleConciergeChat({
     return JSON.stringify({
       status: deliveryComplete ? 'filled' : 'partial',
       deliveryComplete,
-      delivery,
     });
   }
 
@@ -2170,4 +2219,21 @@ function readProductPayload(payload: unknown) {
 
 function readProductIds(payload: unknown): string[] {
   return resolveLomaProductIdsFromPayload(payload);
+}
+
+function toProductRecommendation(product: LomaProduct): ProductRecommendation {
+  return {
+    id: product.id,
+    category: product.shopperCategory,
+    name: product.name,
+    brand: product.brand,
+    price: product.price,
+    currency: 'USD',
+    imageUrl: product.imageUrl,
+    tryOnImageUrl: product.tryOnImageUrl,
+    colorStory: product.sub,
+    material: product.material,
+    fitNotes: product.fitNotes,
+    recommendationReason: product.recommendationReason,
+  };
 }

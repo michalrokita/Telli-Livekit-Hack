@@ -7,6 +7,7 @@ export type CustomerQualities = {
   skinTone: string;
   contrast: 'low' | 'medium' | 'high';
   undertone: string;
+  palette?: string;
   styleNotes: string[];
   summary: string;
 };

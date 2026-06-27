@@ -151,6 +151,7 @@ export async function searchShopperProducts(
 export async function generateShopperTryOns(
   input: {
     customerImageId: string;
+    customerImageDataUrl?: string;
     products: ProductRecommendation[];
     selectedProductIds: string[];
   },
@@ -191,6 +192,7 @@ export async function runShopperDemoFlow(
   const tryOnJobs = await generateShopperTryOns(
     {
       customerImageId,
+      customerImageDataUrl: input.imageDataUrl,
       products,
       selectedProductIds,
     },

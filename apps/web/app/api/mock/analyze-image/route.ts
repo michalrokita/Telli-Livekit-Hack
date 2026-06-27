@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { analyzeCustomerImage, isShopperCategory } from '../../../../lib/shopper-flow';
+import { isShopperCategory } from '../../../../lib/shopper-flow';
+import { createTryOnJobsWithStylistFallback } from '../../../../lib/stylist-service';
 
 type AnalyzeImageBody = {
   imageDataUrl?: unknown;
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'category must be hats or tshirts.' }, { status: 400 });
   }
 
-  const analysis = await analyzeCustomerImage({
+  const analysis = await createTryOnJobsWithStylistFallback.analyze({
     imageDataUrl: body.imageDataUrl,
     category: body.category,
   });

@@ -9,61 +9,64 @@ from typing import Any
 from livekit import rtc
 from dotenv import load_dotenv
 from livekit import agents
-from livekit.agents import Agent, AgentServer, AgentSession, RunContext, ToolError, function_tool, get_job_context, room_io
+from livekit.agents import (
+    Agent,
+    AgentServer,
+    AgentSession,
+    RunContext,
+    ToolError,
+    TurnHandlingOptions,
+    function_tool,
+    get_job_context,
+    inference,
+    room_io,
+)
 from livekit.plugins import openai
 
 from style_concierge.mock_services import (
     analyze_customer_image,
-    generate_try_on_images,
     search_products,
-    summarize_cart,
 )
 
 
 APP_DIR = Path(__file__).resolve().parents[1]
+REPO_DIR = Path(__file__).resolve().parents[3]
+load_dotenv(REPO_DIR / ".env.local")
+load_dotenv(REPO_DIR / ".env", override=False)
 load_dotenv(APP_DIR / ".env.local")
 load_dotenv(APP_DIR / ".env", override=False)
 
 AGENT_NAME = os.getenv("AGENT_NAME") or os.getenv("LIVEKIT_AGENT_NAME") or "style-concierge"
 REALTIME_MODEL = os.getenv("OPENAI_REALTIME_MODEL", "gpt-realtime-2")
 REALTIME_VOICE = os.getenv("OPENAI_REALTIME_VOICE", "marin")
+INTERRUPTION_MIN_DURATION = float(os.getenv("MIRA_INTERRUPTION_MIN_DURATION", "0.9"))
+INTERRUPTION_MIN_WORDS = int(os.getenv("MIRA_INTERRUPTION_MIN_WORDS", "2"))
+FALSE_INTERRUPTION_TIMEOUT = float(os.getenv("MIRA_FALSE_INTERRUPTION_TIMEOUT", "1.8"))
 
 
 AGENT_INSTRUCTIONS = """
 You are Style Concierge, a cheerful voice shopping assistant for a live demo.
-Keep responses warm, concise, and easy to follow by voice.
+Keep replies brief and follow this flow: greet; ask hats or tshirts; ask to prepare
+camera; call prepare_customer_camera; wait for the user to say they are ready; then
+call analyze_customer_image_tool with the exact ready phrase the user said. Explain
+the detected qualities briefly. If the photo is not satisfactory, retake before searching.
 
-Run this exact shopping flow:
-1. Greet the customer cheerfully and ask whether they want to shop for hats or tshirts.
-2. Ask permission to open the live camera preview before analyzing appearance.
-3. After permission, call prepare_customer_camera to open the website camera preview.
-   Tell the customer to say "I'm ready" when they like the frame. Do not capture yet.
-4. Only after the customer says they are ready, say "Great, I'll take it now"
-   and call analyze_customer_image_tool. The website tool shows the 3, 2, 1 countdown,
-   captures the photo in the UI, and analyzes it.
-5. Briefly explain the detected qualities:
-   hair color, skin tone, undertone, contrast, palette, and practical style notes.
-6. If the customer says they are not satisfied with the photo, wants to edit it, or wants a retake,
-   call prepare_customer_camera again and repeat the ready/capture step before product search.
-7. Call search_matching_products and recommend exactly five products with short reasons.
-   Refer to products by their exact product names shown in the UI, never by handles like T1/T2/T3.
-8. Ask which product names they like and wait for selected product names.
-9. Call generate_customer_tryons for selected names. Explain that try-on generation can take a moment,
-   and use the animated cards while the mocked image generation finishes.
-10. After the try-on cards are ready, say the product names that are ready and ask which names to add.
-11. When the customer chooses items to buy, call add_items_to_cart with product names.
-12. The website shows an empty checkout delivery form after add_items_to_cart.
-13. Immediately ask for delivery details: recipient name, street address, city, state, postal code, and phone.
-   Do not wait for the customer to offer them.
-14. After the customer gives delivery details, call fill_delivery_details so the website visibly fills the form.
-15. Tell the customer you filled the form, ask them to review it, and point out the mock Apple Pay button.
+Call search_matching_products, recommend exactly five products, and ask the user to
+select by exact product names. Call generate_customer_tryons for selected names,
+mention generation can take a moment, then ask which product names to add. Call
+add_items_to_cart, then immediately ask for recipient name, street address, city,
+state, postal code, and phone. Call fill_delivery_details only after the customer
+has actually spoken those fields. Ask for missing fields instead of guessing. Ask
+the customer to review the form, and point to mock Apple Pay.
 
-Never claim a real purchase, payment, or image API call was made. The try-on images, inventory,
-cart, and Apple Pay sheet are mocked demo payloads.
+Trust tools to update the website UI. Do not discuss internal API mode. Never claim
+a real purchase or payment was made; inventory, cart, checkout, and Apple Pay are
+demo surfaces.
 
-When using a tool, trust the tool to update the website UI. Do not merely describe
-the UI change. Keep speaking naturally while the website shows camera capture,
-analysis, products, try-ons, cart, and checkout.
+Ignore unclear background speech, unrelated dictation, or transcripts in another
+language unless the user clearly addresses Mira with shopping intent. If unsure,
+ask one short clarifying question. Never advance the flow from noise, partial
+phrases, or guessed details.
 """.strip()
 
 
@@ -186,19 +189,83 @@ def _delivery_payload(
     }
 
 
-def _delivery_details_prompt(product_names: list[str]) -> str:
-    item_text = ", ".join(product_names) if product_names else "your item"
-    return (
-        f"Say you added {item_text} to the cart. Then ask for delivery details now: "
-        "recipient name, street address, city and state, postal code, and phone number. "
-        "Do not ask whether they want to provide details; ask for the details directly."
+def _product_names(products: list[dict[str, Any]]) -> list[str]:
+    return [str(product["name"]) for product in products if product.get("name")]
+
+
+def _compact_tryon_response(product_names: list[str]) -> dict[str, Any]:
+    return {
+        "status": "tryons_ready",
+        "product_names": product_names,
+        "next_step": "Say the try-on previews are ready, then ask which product names to add to cart.",
+    }
+
+
+def _compact_cart_response(added_names: list[str]) -> dict[str, Any]:
+    return {
+        "status": "items_added",
+        "added_names": added_names,
+        "next_step": (
+            "Say the items were added, then ask for delivery details now: "
+            "recipient name, street address, city, state, postal code, and phone."
+        ),
+    }
+
+
+def _compact_delivery_response() -> dict[str, str]:
+    return {
+        "status": "delivery_details_filled",
+        "next_step": "Tell the customer the form is filled, ask them to review it, and point to mock Apple Pay.",
+    }
+
+
+def _looks_like_ready_confirmation(value: str) -> bool:
+    normalized = value.lower()
+    return any(
+        phrase in normalized
+        for phrase in (
+            "ready",
+            "i'm ready",
+            "im ready",
+            "take it",
+            "take the photo",
+            "take a photo",
+            "snap",
+            "go ahead",
+            "yes",
+        )
     )
 
 
-def _delivery_filled_prompt() -> str:
-    return (
-        "Tell the customer the delivery form is filled in. Ask them to review it, "
-        "then use the mock Apple Pay button when everything looks right."
+def _delivery_source_matches_payload(source_transcript: str, payload: dict[str, str]) -> bool:
+    normalized = source_transcript.lower()
+    if len(normalized.split()) < 6:
+        return False
+
+    recipient = payload["recipient"].split()[0].lower()
+    address_token = payload["address"].split()[0].lower()
+    postal_code = payload["postalCode"].lower()
+    return recipient in normalized and (address_token in normalized or postal_code in normalized)
+
+
+def _turn_handling_options() -> TurnHandlingOptions:
+    return TurnHandlingOptions(
+        turn_detection=inference.TurnDetector(),
+        interruption={
+            "enabled": True,
+            "mode": "adaptive",
+            "min_duration": INTERRUPTION_MIN_DURATION,
+            "min_words": INTERRUPTION_MIN_WORDS,
+            "false_interruption_timeout": FALSE_INTERRUPTION_TIMEOUT,
+            "resume_false_interruption": True,
+            "discard_audio_if_uninterruptible": True,
+            "backchannel_boundary": (1.2, 1.8),
+        },
+        endpointing={
+            "mode": "fixed",
+            "min_delay": 0.45,
+            "max_delay": 3.0,
+        },
     )
 
 
@@ -229,7 +296,11 @@ class StyleConciergeAgent(Agent):
         camera_session_id = camera.get("cameraSessionId")
         if isinstance(camera_session_id, str):
             self._camera_session_id = camera_session_id
-        return camera
+        return {
+            "status": "camera_ready",
+            "camera_session_id": self._camera_session_id or "current_camera",
+            "next_step": "Tell the customer to say they are ready when they like the frame.",
+        }
 
     @function_tool(name="analyze_customer_image_tool")
     async def analyze_customer_image_tool(
@@ -237,13 +308,18 @@ class StyleConciergeAgent(Agent):
         context: RunContext,
         image_ref: str,
         category: str,
+        ready_confirmation: str,
     ) -> dict[str, Any]:
         """After the customer says they are ready, capture the photo in the website and analyze it.
 
         Args:
             image_ref: The camera session ID from prepare_customer_camera, or "current_camera".
             category: The category the customer chose, usually hats or tshirts.
+            ready_confirmation: The exact phrase the customer just said to confirm the photo should be taken.
         """
+
+        if not _looks_like_ready_confirmation(ready_confirmation):
+            raise ToolError("Wait until the customer explicitly says they are ready before capturing the photo.")
 
         image_ref = self._camera_session_id or image_ref
         browser_capture = await _browser_rpc(
@@ -253,8 +329,18 @@ class StyleConciergeAgent(Agent):
         )
         image_ref = str(browser_capture.get("imageRef") or image_ref)
         result = analyze_customer_image(image_ref=image_ref, category=category)
-        result["browser_capture"] = browser_capture
-        return result
+        return {
+            "status": "analysis_complete",
+            "image_ref": image_ref,
+            "hair_color": result.get("hair_color"),
+            "skin_tone": result.get("skin_tone"),
+            "undertone": result.get("undertone"),
+            "contrast": result.get("contrast"),
+            "palette": result.get("palette"),
+            "style_notes": result.get("style_notes", [])[:3],
+            "summary": result.get("summary"),
+            "next_step": "Ask whether the photo is satisfactory before searching products.",
+        }
 
     @function_tool(name="search_matching_products")
     async def search_matching_products(
@@ -300,8 +386,8 @@ class StyleConciergeAgent(Agent):
         return {
             "status": "complete",
             "count": len(self._last_products),
-            "products": self._last_products,
-            "selection_instruction": "Ask the customer to choose by product name, not by ID.",
+            "product_names": _product_names(self._last_products),
+            "next_step": "Recommend the five product names with short reasons, then ask which names they like.",
         }
 
     @function_tool(name="generate_customer_tryons")
@@ -311,7 +397,7 @@ class StyleConciergeAgent(Agent):
         image_ref: str,
         selected_products: list[str],
     ) -> dict[str, Any]:
-        """Generate mocked try-on previews for selected products.
+        """Generate try-on previews for selected products.
 
         Args:
             image_ref: A reference to the customer image or current camera frame.
@@ -330,38 +416,16 @@ class StyleConciergeAgent(Agent):
             if product_id in product_by_id
         ]
 
-        await self.session.generate_reply(
-            instructions=(
-                "Briefly say: Great choice. I am rendering try-on previews for "
-                f"{', '.join(selected_product_names)} now. Mention that the animated cards "
-                "will update as the demo finishes generation."
-            )
-        )
-        try_on_images = generate_try_on_images(image_ref, self._last_products, selected_product_ids)
-        browser_tryons = await _browser_rpc(
+        await _browser_rpc(
             "generateTryOns",
             {
                 "imageRef": image_ref,
                 "selectedProductIds": selected_product_ids,
                 "selectedProductNames": selected_product_names,
-                "images": try_on_images,
             },
-            timeout=25.0,
+            timeout=75.0,
         )
-        await self.session.generate_reply(
-            instructions=(
-                "Tell the customer the try-on previews are ready for "
-                f"{', '.join(selected_product_names)}. Ask which product names they want to add to cart."
-            )
-        )
-        return {
-            "status": "complete",
-            "selected_count": len(try_on_images),
-            "generation_mode": "mocked_long_running_image_pipeline",
-            "selected_product_names": selected_product_names,
-            "images": try_on_images,
-            "browser_tryons": browser_tryons,
-        }
+        return _compact_tryon_response(selected_product_names)
 
     @function_tool(name="add_items_to_cart")
     async def add_items_to_cart(
@@ -397,7 +461,7 @@ class StyleConciergeAgent(Agent):
             )
 
         self._cart_lines.extend(new_lines)
-        browser_cart = await _browser_rpc(
+        await _browser_rpc(
             "addToCart",
             {
                 "productIds": product_ids,
@@ -406,14 +470,7 @@ class StyleConciergeAgent(Agent):
             },
             timeout=8.0,
         )
-        summary = summarize_cart(new_lines)
-        summary["cart_total"] = summarize_cart(self._cart_lines)
-        summary["mutation"] = "items_added"
-        summary["browser_cart"] = browser_cart
-        await self.session.generate_reply(
-            instructions=_delivery_details_prompt([line["name"] for line in new_lines])
-        )
-        return summary
+        return _compact_cart_response([line["name"] for line in new_lines])
 
     @function_tool(name="fill_delivery_details")
     async def fill_delivery_details(
@@ -425,6 +482,7 @@ class StyleConciergeAgent(Agent):
         state: str,
         postal_code: str,
         phone: str,
+        source_transcript: str,
     ) -> dict[str, Any]:
         """Fill the visible checkout delivery form after the customer speaks their details.
 
@@ -435,6 +493,7 @@ class StyleConciergeAgent(Agent):
             state: State, region, or province.
             postal_code: Postal or ZIP code.
             phone: Contact phone number for delivery.
+            source_transcript: The exact customer sentence containing the delivery details.
         """
 
         payload = _delivery_payload(
@@ -445,17 +504,15 @@ class StyleConciergeAgent(Agent):
             postal_code=postal_code,
             phone=phone,
         )
-        browser_delivery = await _browser_rpc(
+        if not _delivery_source_matches_payload(source_transcript, payload):
+            raise ToolError("Do not guess delivery details. Ask the customer for the missing delivery fields.")
+
+        await _browser_rpc(
             "fillCheckoutDelivery",
             payload,
             timeout=8.0,
         )
-        await self.session.generate_reply(instructions=_delivery_filled_prompt())
-        return {
-            "status": "delivery_details_filled",
-            "delivery": payload,
-            "browser_delivery": browser_delivery,
-        }
+        return _compact_delivery_response()
 
 
 server = AgentServer()
@@ -464,9 +521,11 @@ server = AgentServer()
 @server.rtc_session(agent_name=AGENT_NAME)
 async def style_concierge(ctx: agents.JobContext) -> None:
     session = AgentSession(
+        turn_handling=_turn_handling_options(),
         llm=openai.realtime.RealtimeModel(
             model=REALTIME_MODEL,
             voice=REALTIME_VOICE,
+            turn_detection=None,
         )
     )
 

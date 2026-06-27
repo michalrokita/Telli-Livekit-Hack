@@ -65,6 +65,18 @@ export function cameraAttributesFromQualities(qualities: CustomerQualities) {
   ];
 }
 
+export function profileChipsFromQualities(qualities: CustomerQualities) {
+  const chips = [
+    qualities.palette ? `${toTitleCase(qualities.palette)} palette` : '',
+    `${toTitleCase(qualities.undertone)} undertone`,
+    `${toTitleCase(qualities.skinTone)} skin`,
+    `${toTitleCase(qualities.hairColor)} hair`,
+    `${toTitleCase(qualities.contrast)} contrast`,
+  ].filter((value) => value.trim().length > 0);
+
+  return [...new Set(chips)].slice(0, 5).map((value) => ({ label: '', value }));
+}
+
 export function createEmptyDeliveryDetails(): CheckoutDeliveryDetails {
   return {
     recipient: '',
@@ -178,6 +190,14 @@ export async function withTimeoutFallback<T>(
 
 function readStringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function toTitleCase(value: string): string {
+  return value
+    .replace(/_/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function readDeliverySource(payload: unknown): Record<string, unknown> {

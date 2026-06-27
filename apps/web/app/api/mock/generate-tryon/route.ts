@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 
-import { createTryOnJobs, type ProductRecommendation } from '../../../../lib/shopper-flow';
+import { type ProductRecommendation } from '../../../../lib/shopper-flow';
+import { createTryOnJobsWithStylistFallback } from '../../../../lib/stylist-service';
 
 type GenerateTryOnBody = {
   customerImageId?: unknown;
+  customerImageDataUrl?: unknown;
+  imageDataUrl?: unknown;
   products?: unknown;
   selectedProductIds?: unknown;
 };
@@ -53,8 +56,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'selectedProductIds are required.' }, { status: 400 });
   }
 
-  const jobs = await createTryOnJobs({
+  const imageDataUrl =
+    typeof body.customerImageDataUrl === 'string'
+      ? body.customerImageDataUrl
+      : typeof body.imageDataUrl === 'string'
+        ? body.imageDataUrl
+        : undefined;
+
+  const jobs = await createTryOnJobsWithStylistFallback.tryOns({
     customerImageId: body.customerImageId,
+    customerImageDataUrl: imageDataUrl,
     products: body.products,
     selectedProductIds: body.selectedProductIds,
   });

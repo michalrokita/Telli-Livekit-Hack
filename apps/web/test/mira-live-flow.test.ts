@@ -5,6 +5,7 @@ import {
   isDeliveryDetailsComplete,
   normalizeRpcCategory,
   normalizeDeliveryDetailsPayload,
+  profileChipsFromQualities,
   resolveLomaProductIdsFromPayload,
   resolveLiveDisplayProducts,
   voiceStateFromAgentState,
@@ -37,6 +38,26 @@ describe('Mira live voice flow helpers', () => {
       { label: 'Skin tone', value: 'warm olive' },
       { label: 'Undertone', value: 'golden' },
       { label: 'Contrast', value: 'medium' },
+    ]);
+  });
+
+  it('builds profile chips from analyzed qualities instead of canned labels', () => {
+    expect(
+      profileChipsFromQualities({
+        hairColor: 'light blond',
+        skinTone: 'fair cool',
+        undertone: 'cool',
+        contrast: 'low',
+        palette: 'summer',
+        styleNotes: [],
+        summary: 'Cool summer palette.',
+      }),
+    ).toEqual([
+      { label: '', value: 'Summer palette' },
+      { label: '', value: 'Cool undertone' },
+      { label: '', value: 'Fair Cool skin' },
+      { label: '', value: 'Light Blond hair' },
+      { label: '', value: 'Low contrast' },
     ]);
   });
 
