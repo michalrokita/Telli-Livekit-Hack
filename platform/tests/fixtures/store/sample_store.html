@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sample Store — Shop</title>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav"><a href="/">Home</a><a href="/shop">Shop</a></nav>
+    <h1 class="page-title">New Arrivals</h1>
+  </header>
+
+  <main class="grid">
+    <!-- A non-product card the heuristic must ignore. -->
+    <div class="promo-banner">
+      <h2 class="title">Summer Sale</h2>
+      <span class="price">up to 50% off</span>
+    </div>
+
+    <div class="product" data-sizes="S,M,L,XL">
+      <a href="/p/blue-crew-tee">
+        <img class="product-image" src="/media/blue-crew-tee.png" alt="Blue Crew Tee">
+      </a>
+      <h3 class="product-title">Blue Crew Tee</h3>
+      <span class="product-price">$24.00</span>
+    </div>
+
+    <div class="product card" data-sizes="OS">
+      <img class="product-image" src="/media/black-5panel-cap.png" alt="Black 5-Panel Cap">
+      <h3 class="product-title">Black 5-Panel Cap</h3>
+      <div class="product-price">€26.50</div>
+    </div>
+
+    <div class="product" data-sizes="XS,S,M,L">
+      <img class="product-image" src="https://cdn.example.com/cream-boxy-tee.png" alt="Cream Boxy Tee">
+      <h3 class="product-title">Vintage Cream Boxy Tee</h3>
+      <span class="product-price">34.90 USD</span>
+    </div>
+  </main>
+
+  <footer class="site-footer"><span class="price">prices in store currency</span></footer>
+</body>
+</html>
