@@ -234,6 +234,7 @@ def edit_image(
     reference_images=None,
     model: str = "gpt-image-2",
     size: str = "1024x1024",
+    quality: str | None = None,
     cassette: str | None = None,
 ) -> bytes:
     """Identity-preserving image edit -> PNG bytes.
@@ -241,6 +242,12 @@ def edit_image(
     ``base_image`` (+ any ``reference_images``) are sent as ``image[]`` inputs;
     an optional ``mask`` locks everything outside the edit region. Returns the
     decoded PNG from ``data[0].b64_json``.
+
+    ``quality`` is the speed/cost knob. Precedence: explicit arg > ``STYLIST_IMAGE_QUALITY``
+    env > ``"medium"`` (the default). ``"medium"`` is ~3-5x faster/cheaper than the API's
+    ``"high"`` default and is plenty on a video-call screen; use ``"low"`` for galleries,
+    ``"high"`` for a hero shot. Set ``STYLIST_IMAGE_QUALITY=""`` to omit the field entirely
+    (reverts to the API's own default — the pre-knob behaviour).
     """
     if not _live():
         return _replay_png(cassette)
@@ -255,7 +262,11 @@ def edit_image(
     if mask is not None:
         files.append(("mask", ("mask.png", load_image_bytes(mask), "image/png")))
 
+    # Render-quality knob: explicit arg > STYLIST_IMAGE_QUALITY env > "medium" default.
+    q = quality or os.environ.get("STYLIST_IMAGE_QUALITY", "medium")
     data = {"prompt": prompt, "model": model, "size": size}
+    if q:
+        data["quality"] = q
     headers = {"Authorization": f"Bearer {api_key}"}
 
     with httpx.Client(timeout=_IMAGE_TIMEOUT_S) as client:
